@@ -1,0 +1,117 @@
+{
+  "name": "api",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "services/api/src",
+  "projectType": "application",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/webpack:webpack",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "target": "node",
+        "compiler": "tsc",
+        "main": "services/api/src/main.ts",
+        "tsConfig": "services/api/tsconfig.app.json",
+        "webpackConfig": "services/api/webpack.config.js",
+        "outputPath": "dist/services/api",
+        "externalDependencies": "all"
+      },
+
+      "configurations": {
+        "development": {
+          "optimization": false,
+          "sourceMap": true
+        },
+        "production": {
+          "optimization": true,
+          "sourceMap": false
+        }
+      }
+    },
+    "build-worker": {
+      "executor": "@nx/webpack:webpack",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "target": "node",
+        "compiler": "tsc",
+        "main": "services/api/src/worker.main.ts",
+        "tsConfig": "services/api/tsconfig.app.json",
+        "webpackConfig": "services/api/webpack.worker.config.js",
+        "outputPath": "dist/services/api-worker",
+        "externalDependencies": "all"
+      },
+      "configurations": {
+        "development": {
+          "optimization": false,
+          "sourceMap": true
+        },
+        "production": {
+          "optimization": true,
+          "sourceMap": false
+        }
+      }
+    },
+    "dev": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "nx serve api"
+      }
+    },
+    "serve": {
+      "continuous": true,
+      "executor": "nx:run-commands",
+      "defaultConfiguration": "development",
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "parallel": false,
+        "commands": ["npm run ensure:redis:local", "nx run api:serve:node"]
+      }
+    },
+    "serve:node": {
+      "continuous": true,
+      "executor": "@nx/js:node",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "api:build:development",
+        "inspect": false
+      }
+    },
+    "serve-worker": {
+      "continuous": true,
+      "executor": "nx:run-commands",
+      "defaultConfiguration": "development",
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "parallel": false,
+        "commands": ["npm run ensure:redis:local", "nx run api:serve-worker:node"]
+      }
+    },
+    "serve-worker:node": {
+      "continuous": true,
+      "executor": "@nx/js:node",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "api:build-worker:development",
+        "inspect": false
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/services/api"],
+      "options": {
+        "jestConfig": "services/api/jest.config.ts",
+        "passWithNoTests": true
+      },
+      "configurations": {
+        "ci": {
+          "ci": true,
+          "codeCoverage": true
+        }
+      }
+    }
+  }
+}
+

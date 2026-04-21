@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "rootDir": ".",
+    "sourceMap": true,
+    "declaration": false,
+    "moduleResolution": "node",
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "importHelpers": true,
+    "target": "es2017",
+    "module": "commonjs",
+    "lib": ["es2017", "dom"],
+    "jsx": "react-jsx",
+    "skipLibCheck": true,
+
+    "skipDefaultLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@wrap-roll/contracts": ["libs/contracts/src/index.ts"],
+      "@wrap-roll/contracts/*": ["libs/contracts/*"],
+      "@wrap-roll/order-kit": ["libs/order-kit/src/index.ts"],
+      "@wrap-roll/order-kit/*": ["libs/order-kit/src/*"],
+      "@wrap-roll/shared-ui": ["libs/shared-ui/src/index.ts"],
+      "@wrap-roll/shared-ui/*": ["libs/shared-ui/*"],
+      "@wrap-roll/utils": ["libs/order-kit/src/index.ts"],
+      "@wrap-roll/utils/*": ["libs/order-kit/src/*"]
+    }
+  },
+  "exclude": ["node_modules", "tmp"]
+}

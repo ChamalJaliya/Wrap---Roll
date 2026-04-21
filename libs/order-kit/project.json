@@ -1,0 +1,24 @@
+{
+  "name": "@wrap-roll/order-kit",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/order-kit/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc -p libs/order-kit/tsconfig.lib.json",
+        "cwd": "{workspaceRoot}"
+      },
+      "outputs": ["{workspaceRoot}/libs/order-kit/dist"]
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "jest --config libs/order-kit/jest.config.ts",
+        "cwd": "{workspaceRoot}"
+      }
+    }
+  },
+  "tags": []
+}

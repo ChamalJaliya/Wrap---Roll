@@ -1,0 +1,16 @@
+{
+  "name": "Wrap & Roll - Cashier POS",
+  "short_name": "W&R Cashier",
+  "description": "Offline-first POS for Wrap & Roll",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#d97706",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64",
+      "type": "image/x-icon"
+    }
+  ]
+}

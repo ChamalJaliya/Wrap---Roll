@@ -1,0 +1,2 @@
+/* Re-export for backwards compatibility — prefer app.css in new code */
+@import './app.css';

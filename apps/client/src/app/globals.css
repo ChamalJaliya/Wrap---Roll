@@ -1,0 +1,2 @@
+/* Client entry: shared design tokens + Tailwind; shadcn CLI may append @theme / imports below. */
+@import '@wrap-roll/shared-ui/src/app.css';

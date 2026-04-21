@@ -1,0 +1,101 @@
+name: wrap-roll
+
+x-app-base: &app-base
+  build:
+    context: .
+    dockerfile: Dockerfile.dev
+  working_dir: /workspace
+  restart: unless-stopped
+
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+
+  api:
+    <<: *app-base
+    env_file:
+      - services/api/.env
+    environment:
+      PORT: "4000"
+      REDIS_URL: redis://redis:6379
+    command: npm run start:api
+    depends_on:
+      - redis
+    ports:
+      - "4000:4000"
+
+  worker:
+    <<: *app-base
+    env_file:
+      - services/api/.env
+    environment:
+      REDIS_URL: redis://redis:6379
+    command: npm run start:worker
+    depends_on:
+      - redis
+      - api
+
+  client:
+    <<: *app-base
+    env_file:
+      - apps/client/.env.local
+    environment:
+      NEXT_PUBLIC_API_URL: /api/nest
+      API_PROXY_TARGET: http://api:4000/api
+    command: sh -lc "cd apps/client && npx next dev --port=3000"
+    depends_on:
+      - api
+    ports:
+      - "3000:3000"
+
+  admin:
+    <<: *app-base
+    env_file:
+      - apps/admin/.env.local
+    environment:
+      NEXT_PUBLIC_API_URL: /api/nest
+      API_PROXY_TARGET: http://api:4000/api
+    command: npm run start:admin
+    depends_on:
+      - api
+    ports:
+      - "3001:3001"
+
+  cashier:
+    <<: *app-base
+    env_file:
+      - apps/cashier/.env.local
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:4000/api
+      NEST_API_URL: http://api:4000
+      API_PROXY_TARGET: http://api:4000/api
+    command: npm run start:cashier
+    depends_on:
+      - api
+    ports:
+      - "3002:3002"
+
+  kitchen:
+    <<: *app-base
+    env_file:
+      - apps/kitchen/.env.local
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:4000/api
+    command: npm run start:kitchen
+    depends_on:
+      - api
+    ports:
+      - "3003:3003"
+
+  delivery:
+    <<: *app-base
+    env_file:
+      - apps/delivery/.env.local
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:4000/api
+    command: npm run start:delivery
+    depends_on:
+      - api
+    ports:
+      - "3004:3004"

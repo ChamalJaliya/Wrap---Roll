@@ -1,0 +1,560 @@
+// services/api/prisma/schema.prisma
+// Wrap & Roll — Prisma Schema (managed by NestJS API)
+// Run: npx prisma generate && npx prisma db push
+
+generator client {
+  provider = "prisma-client-js"
+  engineType = "binary"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum OrderStatus {
+  placed
+  paid
+  in_kitchen
+  ready
+  in_transit
+  delivered
+  cancelled
+  voided
+  refunded
+}
+
+enum OrderSource {
+  client_web
+  client_mobile
+  cashier_pos
+  cashier_pos_offline
+}
+
+enum PaymentMethod {
+  cash
+  card
+  payhere
+  online
+}
+
+enum PaymentStatus {
+  pending
+  completed
+  failed
+  refunded
+}
+
+enum FulfillmentType {
+  dine_in
+  takeaway
+  delivery
+}
+
+enum KitchenPriority {
+  normal
+  rush
+}
+
+enum Availability {
+  available
+  sold_out
+  limited
+}
+
+enum IngredientUnit {
+  g
+  ml
+  pcs
+}
+
+enum InventoryMovementType {
+  PURCHASE
+  CONSUME
+  WASTE
+  ADJUSTMENT
+  RETURN
+}
+
+enum InventoryReferenceType {
+  PURCHASE
+  ORDER
+  WASTE
+  ADJUSTMENT
+  RETURN
+  SYSTEM
+}
+
+enum OverheadCostType {
+  GAS
+  WATER
+  ELECTRICITY
+  LABOR
+  RENT
+  OTHER
+}
+
+enum OverheadAllocationScope {
+  GLOBAL
+  KITCHEN
+  DELIVERY
+}
+
+enum OutboxStatus {
+  pending
+  processing
+  published
+  failed
+  dead_letter
+}
+
+// ─── Customer ────────────────────────────────────────────────────────────────
+
+model Customer {
+  id               String              @id @default(uuid())
+  /** Supabase Auth `user.id` — one Customer per login account */
+  supabaseUserId   String?             @unique
+  name             String
+  email            String?             @unique
+  phone            String?             @unique
+  createdAt        DateTime            @default(now())
+  orders           Order[]
+  addresses        CustomerAddress[]
+  savedPayments    SavedPaymentToken[]
+}
+
+// ─── Vault Engine ────────────────────────────────────────────────────────────
+
+model CustomerAddress {
+  id              String   @id @default(uuid())
+  customerId      String
+  customer        Customer @relation(fields: [customerId], references: [id])
+  label           String   // e.g., "Home", "Work"
+  addressLine1    String
+  addressLine2    String?
+  city            String
+  postalCode      String?
+  latitude        Decimal? @db.Decimal(9, 6)
+  longitude       Decimal? @db.Decimal(9, 6)
+  geocodeSource   String?
+  geocodeAccuracy String?
+  isDefault       Boolean  @default(false)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model SavedPaymentToken {
+  id              String   @id @default(uuid())
+  customerId      String
+  customer        Customer @relation(fields: [customerId], references: [id])
+  
+  // PayHere Vault Token
+  token           String   @unique 
+  
+  // Masked Metadata
+  cardBrand       String   // e.g., "VISA", "MASTERCARD"
+  last4           String   // Last 4 digits
+  
+  isDefault       Boolean  @default(false)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model BusinessSettings {
+  /** Singleton row (use id = 'singleton') */
+  id                   String   @id @default("singleton")
+
+  timezone             String   @default("Asia/Colombo")
+  openingTimeMinutes   Int      @default(600)  // 10:00
+  closingTimeMinutes   Int      @default(1380) // 23:00
+  scheduleSameDayOnly  Boolean  @default(true)
+  minLeadTimeMinutes   Int      @default(20)
+
+  // Business contact/profile
+  businessName         String   @default("Wrap & Roll")
+  contactEmail         String   @default("hello@wrapandroll.lk")
+  replyToEmail         String   @default("hello@wrapandroll.lk")
+  contactPhone         String   @default("+94 77 123 4567")
+  addressLine1         String   @default("123 Flavor Street,")
+  addressLine2         String   @default("Foodie District, Colombo 03")
+
+  /** VAT rate for storefront checkout (e.g. 0.15 = 15%). Applied to subtotal before discount line. */
+  checkoutVatRate      Decimal  @default(0.15) @db.Decimal(7, 6)
+
+  // Delivery + payments (JSON to keep schema flexible)
+  deliveryJson         Json?
+  paymentJson          Json?
+  operationsCalendarJson Json?
+
+  updatedAt            DateTime @updatedAt
+}
+
+// ─── Coupon (promo codes for checkout) ───────────────────────────────────────
+
+model Coupon {
+  id                String    @id @default(uuid())
+  code              String    @unique
+  /** 0.10 = 10% off subtotal */
+  discountPercent   Decimal   @db.Decimal(7, 6)
+  minSubtotal       Decimal?    @db.Decimal(12, 2)
+  firstOrderOnly    Boolean   @default(false)
+  isActive          Boolean   @default(true)
+  expiryDate        DateTime?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+}
+
+
+// ─── Order ───────────────────────────────────────────────────────────────────
+
+model Order {
+  id         String      @id @default(uuid())
+  status     OrderStatus @default(placed)
+  source     OrderSource
+  placedAt   DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  // Auth user id that placed the order (ownership checks).
+  placedByUserId String?
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id])
+  customerName   String?
+  customerPhone  String?
+
+  // Pricing
+  subtotal       Decimal
+  discountCode   String?
+  discountAmount Decimal @default(0)
+  tax            Decimal
+  deliveryFee    Decimal @default(0)
+  total          Decimal
+
+  // Payment
+  paymentMethod  PaymentMethod
+  paymentStatus  PaymentStatus @default(pending)
+  transactionId  String?
+
+  // Fulfillment
+  fulfillmentType     FulfillmentType
+  tableNumber         String?
+  deliveryAddress     String?
+  deliveryLatitude    Decimal? @db.Decimal(9, 6)
+  deliveryLongitude   Decimal? @db.Decimal(9, 6)
+  deliveryDistanceKm  Decimal? @db.Decimal(8, 3)
+  deliveryGeoSource   String?
+  deliveryCalcJson    Json?
+  estimatedReadyTime  DateTime?
+
+  // Kitchen
+  kitchenPriority KitchenPriority @default(normal)
+  printedAt       DateTime?
+  readyAt         DateTime?
+
+  // Delivery
+  courierId String?
+  courier   Courier? @relation(fields: [courierId], references: [id])
+
+  /// POS in-store order accepted outside public opening/cutoff window (takeaway/dine-in only).
+  staffScheduleOverride Boolean @default(false)
+
+  items     OrderItem[]
+  cogsLines OrderCogsLine[]
+  paymentEvents PaymentEvent[]
+
+  @@index([placedByUserId, placedAt])
+  @@index([status, placedAt(sort: Desc)])
+  @@index([fulfillmentType, status, placedAt(sort: Desc)])
+}
+
+model PaymentEvent {
+  id          String   @id @default(uuid())
+  orderId      String
+  order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  eventType    String
+  paymentMethod PaymentMethod?
+  actorRole    String?
+  actorUserId  String?
+  note         String?
+  metadataJson Json?
+  createdAt    DateTime @default(now())
+
+  @@index([orderId, createdAt])
+}
+
+model OpsActivityEvent {
+  id          String   @id @default(uuid())
+  app         String
+  entityType  String
+  entityId    String
+  eventType   String
+  summary     String
+  actorUserId String?
+  actorName   String?
+  actorRole   String?
+  actorEmail  String?
+  metadataJson Json?
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([entityType, entityId, createdAt])
+  @@index([eventType, createdAt])
+  @@index([app, createdAt])
+  @@index([actorUserId, createdAt])
+}
+
+/// Outbound notification attempts (SMS, future email/push) for audit and admin review.
+model NotificationDelivery {
+  id           String   @id @default(uuid())
+  channel      String
+  orderId      String?
+  templateKey  String?
+  toMasked     String?
+  bodyPreview  String?
+  status       String
+  error        String?
+  metadataJson Json?
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([orderId, createdAt])
+}
+
+/// In-app notifications for staff (Supabase `sub` as recipientUserId).
+model StaffNotification {
+  id              String    @id @default(uuid())
+  recipientUserId String
+  title           String
+  body            String
+  linkUrl         String?
+  readAt          DateTime?
+  kind            String    @default("system")
+  metadataJson    Json?
+  createdAt       DateTime  @default(now())
+
+  @@index([recipientUserId, createdAt(sort: Desc)])
+  @@index([recipientUserId, readAt])
+}
+
+// ─── OrderItem ───────────────────────────────────────────────────────────────
+
+model OrderItem {
+  id           String   @id @default(uuid())
+  orderId      String
+  order        Order    @relation(fields: [orderId], references: [id])
+  menuItemId   String
+  menuItem     MenuItem @relation(fields: [menuItemId], references: [id])
+  name         String   // Denormalized for receipt/KDS
+  quantity     Int
+  unitPrice    Decimal
+  lineTotal    Decimal
+
+  // Modifiers (stored as JSON — flexible wrap builder)
+  modifiersJson Json
+}
+
+// ─── MenuItem ────────────────────────────────────────────────────────────────
+
+model MenuItem {
+  id           String       @id @default(uuid())
+  name         String
+  description  String?
+  basePrice    Decimal
+  prepTimeMinutes Int       @default(0)
+  imageUrl     String?
+  categoryId   String
+  category     MenuCategory @relation(fields: [categoryId], references: [id])
+  availability Availability @default(available)
+  isActive     Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  // Modifier config (stored as JSON — shape defined in libs/contracts)
+  modifierGroupsJson Json
+
+  orderItems   OrderItem[]
+  recipes      RecipeIngredient[]
+  cogsLines    OrderCogsLine[]
+  optionIngredientDeltas MenuModifierOptionIngredientDelta[]
+}
+
+model MenuCategory {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  slug      String   @unique
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  menuItems MenuItem[]
+}
+
+// ─── Courier ─────────────────────────────────────────────────────────────────
+
+model Courier {
+  id        String   @id @default(uuid())
+  name      String
+  phone     String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  orders    Order[]
+}
+
+// ─── Ingredient Inventory (Sprint S5) ────────────────────────────────────────
+
+model Ingredient {
+  id                String         @id @default(uuid())
+  name              String
+  unit              IngredientUnit
+  costPerUnit       Decimal        // LKR
+  currentStock      Decimal        // in units
+  lowStockThreshold Decimal
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  recipes        RecipeIngredient[]
+  restockHistory RestockLog[]
+  movements      InventoryMovement[]
+  valuations     IngredientValuationSnapshot[]
+  cogsLines      OrderCogsLine[]
+  optionIngredientDeltas MenuModifierOptionIngredientDelta[]
+}
+
+model RecipeIngredient {
+  id           String     @id @default(uuid())
+  menuItemId   String
+  menuItem     MenuItem   @relation(fields: [menuItemId], references: [id])
+  ingredientId String
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+  quantityUsed Decimal    // units consumed per 1 item sold
+
+  @@unique([menuItemId, ingredientId])
+}
+
+model RestockLog {
+  id           String     @id @default(uuid())
+  ingredientId String
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+  quantity     Decimal
+  note         String?
+  restockedAt  DateTime   @default(now())
+}
+
+model InventoryMovement {
+  id              String                 @id @default(uuid())
+  ingredientId    String
+  ingredient      Ingredient             @relation(fields: [ingredientId], references: [id])
+  movementType    InventoryMovementType
+  quantityDelta   Decimal
+  unitCost        Decimal?
+  totalValueDelta Decimal?
+  resultingQty    Decimal
+  resultingAvgCost Decimal
+  referenceType   InventoryReferenceType @default(SYSTEM)
+  referenceId     String?
+  note            String?
+  occurredAt      DateTime               @default(now())
+  createdAt       DateTime               @default(now())
+
+  @@index([ingredientId, occurredAt])
+  @@index([referenceType, referenceId])
+}
+
+model IngredientValuationSnapshot {
+  id           String     @id @default(uuid())
+  ingredientId String
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+  avgUnitCost  Decimal
+  onHandQty    Decimal
+  inventoryValue Decimal
+  asOf         DateTime
+  createdAt    DateTime   @default(now())
+
+  @@index([ingredientId, asOf])
+}
+
+model OrderCogsLine {
+  id             String     @id @default(uuid())
+  orderId         String
+  order           Order      @relation(fields: [orderId], references: [id])
+  menuItemId      String
+  menuItem        MenuItem   @relation(fields: [menuItemId], references: [id])
+  ingredientId    String
+  ingredient      Ingredient @relation(fields: [ingredientId], references: [id])
+  qtyConsumed     Decimal
+  unitCostAtSale  Decimal
+  lineCost        Decimal
+  occurredAt      DateTime   @default(now())
+  createdAt       DateTime   @default(now())
+
+  @@index([orderId])
+  @@index([ingredientId, occurredAt])
+}
+
+model OverheadCostEntry {
+  id               String                  @id @default(uuid())
+  costType         OverheadCostType
+  amount           Decimal
+  periodStart      DateTime
+  periodEnd        DateTime
+  allocationScope  OverheadAllocationScope @default(GLOBAL)
+  note             String?
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+
+  @@index([periodStart, periodEnd])
+  @@index([costType])
+}
+
+model MenuModifierOptionIngredientDelta {
+  id           String     @id @default(uuid())
+  menuItemId   String
+  menuItem     MenuItem   @relation(fields: [menuItemId], references: [id])
+  optionId     String
+  ingredientId String
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+  quantityDelta Decimal
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([menuItemId, optionId, ingredientId])
+  @@index([menuItemId, optionId])
+}
+
+model StaffAuditLog {
+  id           String   @id @default(uuid())
+  actorUserId  String
+  actorEmail   String
+  targetUserId String
+  targetEmail  String
+  action       String
+  detailsJson  Json?
+  createdAt    DateTime @default(now())
+}
+
+model OutboxEvent {
+  id             String      @id @default(uuid())
+  eventType      String
+  eventVersion   Int         @default(1)
+  entityType     String
+  entityId       String
+  correlationId  String?
+  idempotencyKey String?     @unique
+  payloadJson    Json
+  status         OutboxStatus @default(pending)
+  publishAfter   DateTime    @default(now())
+  attemptCount   Int         @default(0)
+  lastError      String?
+  lockedAt       DateTime?
+  lockedBy       String?
+  publishedAt    DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([status, publishAfter, createdAt])
+  @@index([entityType, entityId, createdAt])
+  @@index([eventType, createdAt])
+}

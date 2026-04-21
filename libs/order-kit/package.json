@@ -1,0 +1,17 @@
+{
+  "name": "@wrap-roll/order-kit",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./dist/libs/order-kit/src/index.js",
+  "types": "./dist/libs/order-kit/src/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.lib.json",
+    "test": "jest --passWithNoTests src/**/*.spec.ts"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.101.1"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0"
+  }
+}

@@ -1,0 +1,27 @@
+# Wrap & Roll — NX Monorepo
+
+## System requirements
+node_modules/
+.nx/cache
+playwright-report/
+test-results/
+.nx/workspace-data/
+dist/
+.next/
+*.env.local
+*.env.*.local
+
+# API and root env files with secrets (keep *.env.example tracked)
+.env
+services/api/.env
+services/api/.env.local
+.DS_Store
+Thumbs.db
+
+## Supabase
+supabase/.branches/
+supabase/.temp/
+
+# Next.js
+.next
+out

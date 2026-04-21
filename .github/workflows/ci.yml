@@ -1,0 +1,110 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+env:
+  NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
+  # Required for PaymentService unit tests (avoids constructor guard throw)
+  NODE_ENV: test
+  PAYHERE_MERCHANT_ID: dummy_merchant_id
+  PAYHERE_MERCHANT_SECRET: dummy_secret
+  ALLOW_INSECURE_PAYMENT_DEFAULTS: "true"
+
+jobs:
+  lint:
+    name: 🔍 Lint & Centralization Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+      - name: Centralization lint (warn by default)
+        run: |
+          if [ "${CENTRALIZATION_STRICT}" = "true" ]; then
+            npm run lint:centralization:strict
+          else
+            npm run lint:centralization
+          fi
+      - name: Upload centralization report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: centralization-report
+          path: artifacts/centralization-report.md
+      - run: npx nx affected --target=lint --base=origin/main --head=HEAD --parallel=3
+
+  test:
+    name: 🧪 Test Suite (Unit + Integration)
+    runs-on: ubuntu-latest
+    needs: lint
+    env:
+      # Stress tests are always skipped in CI — run locally with RUN_STRESS_TESTS=1
+      RUN_STRESS_TESTS: "0"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+      - name: Run affected tests with coverage
+        run: >
+          npx nx affected
+          --target=test
+          --base=origin/main
+          --head=HEAD
+          --parallel=1
+          --coverage
+          --coverageReporters=text-summary
+          --coverageReporters=lcov
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+
+  build:
+    name: 🏗️ Build
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+      - run: npx nx affected --target=build --base=origin/main --head=HEAD --parallel=3
+
+  typecheck:
+    name: 🔷 TypeScript Check
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+      - run: npx nx affected --target=typecheck --base=origin/main --head=HEAD --parallel=3

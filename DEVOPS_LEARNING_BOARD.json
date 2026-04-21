@@ -1,0 +1,949 @@
+{
+  "boardName": "DevOps Learning Roadmap Board",
+  "project": "Wrap & Roll",
+  "owner": "chamal",
+  "track": "Beginner -> Multi-Cloud DevOps Operator",
+  "lastUpdated": "2026-04-21",
+  "learningPreferences": {
+    "dailyTime": "45-60 minutes",
+    "mode": "explain-then-task",
+    "goal": "Career-focused DevOps upskilling with practical repo-first exercises"
+  },
+  "successCriteria": [
+    "Understand and explain CI/CD flow in this repository",
+    "Build and run API/worker containers confidently",
+    "Deploy staging on AWS with automated pipeline",
+    "Operate logging, alarms, and rollback safely",
+    "Promote tested artifacts from staging to production",
+    "Translate AWS architecture patterns to Azure and GCP equivalents"
+  ],
+  "learningModel": {
+    "theoryToPracticeRatio": "40:60",
+    "sessionTemplate": [
+      "10-15 min theory: one concept and why it matters",
+      "25-35 min hands-on: one repo task or cloud operation",
+      "5-10 min reflection: what failed, why, and fix notes"
+    ],
+    "rule": "Every theory block must end with one practical validation step."
+  },
+  "architectureDecision": {
+    "recommendedBaseline": "AWS ECS Fargate + ECR + ALB + CloudWatch + Secrets Manager + SES + SNS/Twilio",
+    "why": "Professional, scalable, lower operational overhead and lower entry complexity than raw EC2",
+    "budgetApproach": "Staging-first, small task sizes, minimal managed resources, strict log retention"
+  },
+  "multiCloudPortabilityMap": {
+    "containerOrchestration": {
+      "aws": "ECS Fargate",
+      "azure": "Azure Container Apps or AKS",
+      "gcp": "Cloud Run or GKE"
+    },
+    "containerRegistry": {
+      "aws": "ECR",
+      "azure": "Azure Container Registry (ACR)",
+      "gcp": "Artifact Registry"
+    },
+    "loadBalancing": {
+      "aws": "ALB",
+      "azure": "Application Gateway",
+      "gcp": "Cloud Load Balancing"
+    },
+    "secrets": {
+      "aws": "Secrets Manager / SSM Parameter Store",
+      "azure": "Key Vault",
+      "gcp": "Secret Manager"
+    },
+    "logsAndMetrics": {
+      "aws": "CloudWatch",
+      "azure": "Azure Monitor + Log Analytics",
+      "gcp": "Cloud Logging + Cloud Monitoring"
+    },
+    "emailAndSms": {
+      "aws": "SES + SNS",
+      "azure": "Azure Communication Services",
+      "gcp": "Third-party providers (e.g., Twilio/SendGrid) with GCP runtime"
+    }
+  },
+  "crossCloudLearningMilestones": [
+    {
+      "id": "CC1",
+      "title": "Service Equivalence Mastery",
+      "status": "todo",
+      "tasks": [
+        "Map each AWS service in your design to Azure and GCP equivalents",
+        "Document trade-offs: cost, complexity, and ecosystem maturity",
+        "Explain when you would choose each cloud"
+      ]
+    },
+    {
+      "id": "CC2",
+      "title": "Portable Deployment Mindset",
+      "status": "todo",
+      "tasks": [
+        "Keep Docker images and app config cloud-agnostic",
+        "Use Terraform patterns that can be adapted across providers",
+        "Avoid tight provider lock-in unless there is a clear business reason"
+      ]
+    }
+  ],
+  "milestones": [
+    {
+      "id": "M1",
+      "title": "CI/CD Foundations",
+      "duration": "Week 1",
+      "status": "in_progress",
+      "outcome": "Read and explain current CI workflow and job dependencies",
+      "tasks": [
+        {
+          "id": "M1-T1",
+          "title": "Explain workflow triggers and branch strategy",
+          "status": "in_progress"
+        },
+        {
+          "id": "M1-T2",
+          "title": "Map lint -> test -> build -> typecheck dependencies",
+          "status": "todo"
+        },
+        {
+          "id": "M1-T3",
+          "title": "Explain why Nx affected improves CI speed",
+          "status": "todo"
+        }
+      ]
+    },
+    {
+      "id": "M2",
+      "title": "Container Fundamentals",
+      "duration": "Week 2",
+      "status": "todo",
+      "outcome": "Run reproducible API and worker containers with health checks",
+      "tasks": [
+        {
+          "id": "M2-T1",
+          "title": "Understand Docker image layers and multi-stage builds",
+          "status": "todo"
+        },
+        {
+          "id": "M2-T2",
+          "title": "Build production-style API and worker images locally",
+          "status": "todo"
+        },
+        {
+          "id": "M2-T3",
+          "title": "Validate startup/shutdown behavior and health endpoints",
+          "status": "todo"
+        }
+      ]
+    },
+    {
+      "id": "M3",
+      "title": "AWS Core Services",
+      "duration": "Week 3",
+      "status": "todo",
+      "outcome": "Understand and operate ECS/Fargate deployment path",
+      "tasks": [
+        {
+          "id": "M3-T1",
+          "title": "Learn ECR image lifecycle and tagging strategy",
+          "status": "todo"
+        },
+        {
+          "id": "M3-T2",
+          "title": "Understand ECS service, task definition, and ALB routing",
+          "status": "todo"
+        },
+        {
+          "id": "M3-T3",
+          "title": "Read logs in CloudWatch and verify health checks",
+          "status": "todo"
+        }
+      ]
+    },
+    {
+      "id": "M4",
+      "title": "Infrastructure as Code",
+      "duration": "Week 4",
+      "status": "todo",
+      "outcome": "Deploy staging stack via Terraform safely",
+      "tasks": [
+        {
+          "id": "M4-T1",
+          "title": "Learn terraform init/plan/apply workflow",
+          "status": "todo"
+        },
+        {
+          "id": "M4-T2",
+          "title": "Create environment isolation for staging and production",
+          "status": "todo"
+        },
+        {
+          "id": "M4-T3",
+          "title": "Review and explain plan diffs before apply",
+          "status": "todo"
+        }
+      ]
+    },
+    {
+      "id": "M5",
+      "title": "Automated Staging CD",
+      "duration": "Week 5",
+      "status": "todo",
+      "outcome": "Auto-deploy staging from develop after successful CI",
+      "tasks": [
+        {
+          "id": "M5-T1",
+          "title": "Build and push immutable images to ECR in GitHub Actions",
+          "status": "todo"
+        },
+        {
+          "id": "M5-T2",
+          "title": "Deploy API and worker services to staging ECS",
+          "status": "todo"
+        },
+        {
+          "id": "M5-T3",
+          "title": "Run smoke checks and define rollback process",
+          "status": "todo"
+        }
+      ]
+    },
+    {
+      "id": "M6",
+      "title": "Observability and Reliability",
+      "duration": "Week 6",
+      "status": "todo",
+      "outcome": "Detect and respond to operational failures quickly",
+      "tasks": [
+        {
+          "id": "M6-T1",
+          "title": "Standardize structured logs across API and worker",
+          "status": "todo"
+        },
+        {
+          "id": "M6-T2",
+          "title": "Create CloudWatch alarms for 5xx, worker down, queue failures",
+          "status": "todo"
+        },
+        {
+          "id": "M6-T3",
+          "title": "Build a simple operations dashboard",
+          "status": "todo"
+        }
+      ]
+    },
+    {
+      "id": "M7",
+      "title": "Real Notification Services",
+      "duration": "Week 7",
+      "status": "todo",
+      "outcome": "Production-ready SMS and email notifications",
+      "tasks": [
+        {
+          "id": "M7-T1",
+          "title": "Integrate real SMS provider (SNS or Twilio)",
+          "status": "todo"
+        },
+        {
+          "id": "M7-T2",
+          "title": "Integrate SES for email notifications",
+          "status": "todo"
+        },
+        {
+          "id": "M7-T3",
+          "title": "Add retries, failure tracking, and delivery metrics",
+          "status": "todo"
+        }
+      ]
+    },
+    {
+      "id": "M8",
+      "title": "Production Promotion and Readiness",
+      "duration": "Week 8",
+      "status": "todo",
+      "outcome": "Safe gated production releases with rollback confidence",
+      "tasks": [
+        {
+          "id": "M8-T1",
+          "title": "Set manual approval gate for production deployments",
+          "status": "todo"
+        },
+        {
+          "id": "M8-T2",
+          "title": "Promote tested staging artifact to production",
+          "status": "todo"
+        },
+        {
+          "id": "M8-T3",
+          "title": "Run go-live checklist and rollback drill",
+          "status": "todo"
+        }
+      ]
+    }
+  ],
+  "dailyLearningPlan": [
+    {
+      "day": 1,
+      "focus": "CI/CD basics from current repo",
+      "theory": "Understand workflow triggers, jobs, steps, needs, and artifacts in GitHub Actions.",
+      "practical": "Read .github/workflows/ci.yml and document push/PR triggers and job dependency flow.",
+      "deliverable": "A 5-line explanation of what happens on push to develop.",
+      "mappedMilestoneTasks": [
+        "M1-T1",
+        "M1-T2"
+      ],
+      "status": "in_progress"
+    },
+    {
+      "day": 2,
+      "focus": "Nx affected strategy",
+      "theory": "Learn how affected graph reduces CI time and compute cost.",
+      "practical": "Inspect nx affected commands in ci.yml and explain base/head behavior.",
+      "deliverable": "Short note: when affected might miss or include extra projects.",
+      "mappedMilestoneTasks": [
+        "M1-T3"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 3,
+      "focus": "Branching and release hygiene",
+      "theory": "Understand develop/main roles, protected branches, and required checks.",
+      "practical": "Draft branch policy for staging auto-deploy and production approval gate.",
+      "deliverable": "One-page branch and release policy draft.",
+      "mappedMilestoneTasks": [
+        "M1-T1"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 4,
+      "focus": "Docker fundamentals",
+      "theory": "Learn image layers, tags, and difference between dev/prod containers.",
+      "practical": "Review Dockerfile.dev and list production gaps.",
+      "deliverable": "Checklist of required production container hardening updates.",
+      "mappedMilestoneTasks": [
+        "M2-T1"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 5,
+      "focus": "Container runtime validation",
+      "theory": "Understand health checks, startup order, and graceful shutdown.",
+      "practical": "Run API and worker flows locally and capture startup dependencies.",
+      "deliverable": "Runbook note for local container troubleshooting.",
+      "mappedMilestoneTasks": [
+        "M2-T2",
+        "M2-T3"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 6,
+      "focus": "AWS compute and registry",
+      "theory": "Learn ECS service/task concepts and ECR image lifecycle.",
+      "practical": "Create a visual map of API/worker deployment to ECS + ALB.",
+      "deliverable": "Architecture sketch with request and worker flow.",
+      "mappedMilestoneTasks": [
+        "M3-T1",
+        "M3-T2"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 7,
+      "focus": "Observability essentials",
+      "theory": "Learn logs vs metrics vs alerts and why each is needed.",
+      "practical": "Define first alarm set: API 5xx, worker down, queue backlog.",
+      "deliverable": "Initial monitoring requirements document.",
+      "mappedMilestoneTasks": [
+        "M6-T2"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 8,
+      "focus": "Terraform fundamentals",
+      "theory": "Learn terraform state, plan/apply, and variable handling.",
+      "practical": "Draft environment variable matrix for staging vs production.",
+      "deliverable": "Staging/prod config matrix with secret ownership.",
+      "mappedMilestoneTasks": [
+        "M4-T1",
+        "M4-T2"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 9,
+      "focus": "Staging deploy pipeline design",
+      "theory": "Understand CI to CD transition and immutable artifact promotion.",
+      "practical": "Draft job sequence for build, push to ECR, deploy to ECS, smoke checks.",
+      "deliverable": "Proposed deploy-staging workflow steps.",
+      "mappedMilestoneTasks": [
+        "M5-T1",
+        "M5-T2",
+        "M5-T3"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 10,
+      "focus": "Rollback and incident basics",
+      "theory": "Learn safe rollback patterns and fast incident triage.",
+      "practical": "Write first rollback playbook for failed staging deploy.",
+      "deliverable": "Rollback checklist with owner and validation steps.",
+      "mappedMilestoneTasks": [
+        "M5-T3",
+        "M6-T3"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 11,
+      "focus": "Notification reliability",
+      "theory": "Understand retries, idempotency, DLQ, and provider failure behavior.",
+      "practical": "Map current SMS/email flow and identify production readiness gaps.",
+      "deliverable": "Notification hardening plan (SMS + email).",
+      "mappedMilestoneTasks": [
+        "M7-T1",
+        "M7-T2",
+        "M7-T3"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 12,
+      "focus": "Production safety gate",
+      "theory": "Learn approval gates, release evidence, and change accountability.",
+      "practical": "Define production promotion checklist from tested staging artifact.",
+      "deliverable": "Production gate policy and sign-off template.",
+      "mappedMilestoneTasks": [
+        "M8-T1",
+        "M8-T2"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 13,
+      "focus": "Multi-cloud translation day",
+      "theory": "Compare AWS, Azure, and GCP services for your architecture.",
+      "practical": "Translate your staging architecture to Azure and GCP equivalents.",
+      "deliverable": "Cloud portability cheat sheet.",
+      "mappedMilestoneTasks": [
+        "CC1"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 14,
+      "focus": "Capstone review and shareable summary",
+      "theory": "Learn how to communicate DevOps maturity and trade-offs.",
+      "practical": "Compile what you learned, what is deployed, and what is next.",
+      "deliverable": "Shareable 1-page learning summary + next 30-day goals.",
+      "mappedMilestoneTasks": [
+        "CC2",
+        "M8-T3"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 15,
+      "focus": "ECR deep dive",
+      "theory": "Understand image tags, digests, and immutable artifact practice.",
+      "practical": "Define image tagging standard for branch, commit SHA, and release.",
+      "deliverable": "Image versioning policy document.",
+      "mappedMilestoneTasks": [
+        "M3-T1"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 16,
+      "focus": "ECS task definitions",
+      "theory": "Learn task CPU/memory sizing, env injection, and container health checks.",
+      "practical": "Draft API and worker task definition requirements.",
+      "deliverable": "Task definition checklist.",
+      "mappedMilestoneTasks": [
+        "M3-T2"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 17,
+      "focus": "ALB routing fundamentals",
+      "theory": "Understand listeners, target groups, health checks, and path routing.",
+      "practical": "Map incoming HTTP traffic path to API service.",
+      "deliverable": "ALB routing diagram notes.",
+      "mappedMilestoneTasks": [
+        "M3-T2"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 18,
+      "focus": "CloudWatch logs basics",
+      "theory": "Learn log groups, streams, retention, and structured logging.",
+      "practical": "Define JSON log fields for API and worker.",
+      "deliverable": "Structured log schema v1.",
+      "mappedMilestoneTasks": [
+        "M3-T3",
+        "M6-T1"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 19,
+      "focus": "AWS IAM basics",
+      "theory": "Understand least privilege and service role boundaries.",
+      "practical": "List minimum permissions needed by API and worker.",
+      "deliverable": "IAM role separation draft.",
+      "mappedMilestoneTasks": [
+        "M4-T2"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 20,
+      "focus": "Secrets management",
+      "theory": "Learn runtime secret injection and rotation concepts.",
+      "practical": "Prepare secrets inventory by environment.",
+      "deliverable": "Staging/production secrets register.",
+      "mappedMilestoneTasks": [
+        "M4-T2"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 21,
+      "focus": "Week 3 review",
+      "theory": "Consolidate AWS runtime model from request to worker processing.",
+      "practical": "Explain end-to-end runtime flow without reading notes.",
+      "deliverable": "Recorded 5-minute architecture walkthrough.",
+      "mappedMilestoneTasks": [
+        "M3-T1",
+        "M3-T2",
+        "M3-T3"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 22,
+      "focus": "Terraform project structure",
+      "theory": "Learn modules, environments, state, and naming conventions.",
+      "practical": "Design folder structure for staging and production IaC.",
+      "deliverable": "IaC repository structure proposal.",
+      "mappedMilestoneTasks": [
+        "M4-T1"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 23,
+      "focus": "Terraform variables and tfvars",
+      "theory": "Understand typed variables and environment-specific values.",
+      "practical": "Draft variable catalog for compute, networking, logging, and secrets.",
+      "deliverable": "terraform variables matrix.",
+      "mappedMilestoneTasks": [
+        "M4-T1",
+        "M4-T2"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 24,
+      "focus": "Terraform plan safety",
+      "theory": "Learn how to review plans before apply and avoid accidental drift.",
+      "practical": "Write plan review checklist and approval criteria.",
+      "deliverable": "IaC change review checklist.",
+      "mappedMilestoneTasks": [
+        "M4-T3"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 25,
+      "focus": "Network foundations",
+      "theory": "Understand VPC, subnets, route tables, and security groups.",
+      "practical": "Map minimum network layout for staging environment.",
+      "deliverable": "Staging network plan.",
+      "mappedMilestoneTasks": [
+        "M4-T2"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 26,
+      "focus": "State management and locking",
+      "theory": "Learn why remote state and locks are required for teams.",
+      "practical": "Define remote state backend strategy.",
+      "deliverable": "Terraform state governance note.",
+      "mappedMilestoneTasks": [
+        "M4-T1"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 27,
+      "focus": "Environment parity",
+      "theory": "Understand parity vs cost and controlled differences between environments.",
+      "practical": "Create parity policy table (staging vs prod).",
+      "deliverable": "Environment parity policy.",
+      "mappedMilestoneTasks": [
+        "M4-T2",
+        "M8-T2"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 28,
+      "focus": "Week 4 review",
+      "theory": "Reinforce IaC lifecycle and safe change management.",
+      "practical": "Present IaC plan to a peer using your checklist.",
+      "deliverable": "Peer-review ready IaC plan pack.",
+      "mappedMilestoneTasks": [
+        "M4-T1",
+        "M4-T2",
+        "M4-T3"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 29,
+      "focus": "CD pipeline architecture",
+      "theory": "Understand build once, deploy many and immutable artifacts.",
+      "practical": "Draft deploy-staging workflow stages and dependencies.",
+      "deliverable": "CD workflow blueprint.",
+      "mappedMilestoneTasks": [
+        "M5-T1"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 30,
+      "focus": "GitHub OIDC and AWS auth",
+      "theory": "Learn secure CI access to AWS without long-lived keys.",
+      "practical": "Document OIDC trust and role assumption model.",
+      "deliverable": "CI-to-AWS auth design note.",
+      "mappedMilestoneTasks": [
+        "M5-T1"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 31,
+      "focus": "Build and publish images",
+      "theory": "Understand reproducible builds and cache strategy in CI.",
+      "practical": "Specify image build matrix for API and worker.",
+      "deliverable": "Image build pipeline spec.",
+      "mappedMilestoneTasks": [
+        "M5-T1"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 32,
+      "focus": "Staging deploy mechanics",
+      "theory": "Learn ECS service update behavior and deployment rollout states.",
+      "practical": "Define how API and worker services are updated during CD.",
+      "deliverable": "Staging rollout procedure.",
+      "mappedMilestoneTasks": [
+        "M5-T2"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 33,
+      "focus": "Smoke testing after deploy",
+      "theory": "Understand confidence checks that gate promotion.",
+      "practical": "Define smoke checks for health endpoint and queue path.",
+      "deliverable": "Post-deploy smoke test checklist.",
+      "mappedMilestoneTasks": [
+        "M5-T3"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 34,
+      "focus": "Rollback strategy",
+      "theory": "Learn rollback triggers, time-to-recover, and release guardrails.",
+      "practical": "Create decision tree: rollback vs fix-forward.",
+      "deliverable": "Rollback decision matrix.",
+      "mappedMilestoneTasks": [
+        "M5-T3",
+        "M6-T3"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 35,
+      "focus": "Week 5 review",
+      "theory": "Consolidate CI to CD knowledge and release safety.",
+      "practical": "Run a tabletop simulation of failed staging deployment.",
+      "deliverable": "Incident simulation notes and actions.",
+      "mappedMilestoneTasks": [
+        "M5-T1",
+        "M5-T2",
+        "M5-T3"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 36,
+      "focus": "Logging standards",
+      "theory": "Understand log levels, correlation IDs, and troubleshooting patterns.",
+      "practical": "Define per-service logging baseline fields.",
+      "deliverable": "Logging standards v1.",
+      "mappedMilestoneTasks": [
+        "M6-T1"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 37,
+      "focus": "Metrics and SLO basics",
+      "theory": "Learn SLI/SLO concepts for latency, error rate, and availability.",
+      "practical": "Propose initial SLO targets for staging and production.",
+      "deliverable": "SLO draft sheet.",
+      "mappedMilestoneTasks": [
+        "M6-T2"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 38,
+      "focus": "Alert design",
+      "theory": "Understand alert fatigue and actionable threshold design.",
+      "practical": "Create alert severity policy (P1/P2/P3).",
+      "deliverable": "Alarm policy and escalation flow.",
+      "mappedMilestoneTasks": [
+        "M6-T2"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 39,
+      "focus": "Operations dashboard",
+      "theory": "Learn dashboard composition for service and business signals.",
+      "practical": "Define dashboard widgets for API, worker, and queue.",
+      "deliverable": "Dashboard specification.",
+      "mappedMilestoneTasks": [
+        "M6-T3"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 40,
+      "focus": "Runbook discipline",
+      "theory": "Understand why operational procedures reduce incident stress.",
+      "practical": "Draft runbook for queue backlog incident response.",
+      "deliverable": "Queue incident runbook v1.",
+      "mappedMilestoneTasks": [
+        "M6-T3"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 41,
+      "focus": "Chaos-lite practice",
+      "theory": "Learn controlled failure testing for confidence.",
+      "practical": "Design one non-destructive staging failure drill.",
+      "deliverable": "Staging resilience drill script.",
+      "mappedMilestoneTasks": [
+        "M6-T2",
+        "M6-T3"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 42,
+      "focus": "Week 6 review",
+      "theory": "Combine observability, alerting, and recovery process.",
+      "practical": "Present mock incident timeline from detection to recovery.",
+      "deliverable": "Ops readiness review pack.",
+      "mappedMilestoneTasks": [
+        "M6-T1",
+        "M6-T2",
+        "M6-T3"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 43,
+      "focus": "SMS provider architecture",
+      "theory": "Understand provider abstraction and failure modes.",
+      "practical": "Define provider interface and fallback behavior.",
+      "deliverable": "SMS provider design spec.",
+      "mappedMilestoneTasks": [
+        "M7-T1"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 44,
+      "focus": "Email delivery basics",
+      "theory": "Learn transactional email concepts and template versioning.",
+      "practical": "Define initial template catalog and event mapping.",
+      "deliverable": "Email template/event matrix.",
+      "mappedMilestoneTasks": [
+        "M7-T2"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 45,
+      "focus": "Retries and idempotency",
+      "theory": "Understand idempotent consumers and retry backoff strategies.",
+      "practical": "Draft retry policy for SMS and email jobs.",
+      "deliverable": "Notification retry policy v1.",
+      "mappedMilestoneTasks": [
+        "M7-T3"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 46,
+      "focus": "DLQ and failure handling",
+      "theory": "Learn dead-letter queue patterns and replay workflows.",
+      "practical": "Define DLQ triage checklist for failed notifications.",
+      "deliverable": "DLQ operations playbook.",
+      "mappedMilestoneTasks": [
+        "M7-T3"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 47,
+      "focus": "Delivery telemetry",
+      "theory": "Understand success/failure counters and latency metrics.",
+      "practical": "Define notification KPI dashboard requirements.",
+      "deliverable": "Notification KPI spec.",
+      "mappedMilestoneTasks": [
+        "M7-T3",
+        "M6-T3"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 48,
+      "focus": "Provider security",
+      "theory": "Learn secret scoping and webhook validation basics.",
+      "practical": "Create security checklist for provider integration.",
+      "deliverable": "Notification security checklist.",
+      "mappedMilestoneTasks": [
+        "M7-T1",
+        "M7-T2"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 49,
+      "focus": "Week 7 review",
+      "theory": "Consolidate reliable messaging architecture and operations.",
+      "practical": "Run a notification failure tabletop exercise.",
+      "deliverable": "Failure drill outcomes and improvements.",
+      "mappedMilestoneTasks": [
+        "M7-T1",
+        "M7-T2",
+        "M7-T3"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 50,
+      "focus": "Production release governance",
+      "theory": "Understand approvals, change windows, and audit trail needs.",
+      "practical": "Define production release checklist with approval owners.",
+      "deliverable": "Production release governance doc.",
+      "mappedMilestoneTasks": [
+        "M8-T1"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 51,
+      "focus": "Artifact promotion model",
+      "theory": "Learn why promoting tested artifacts reduces risk.",
+      "practical": "Design staging-to-production artifact promotion steps.",
+      "deliverable": "Promotion workflow design.",
+      "mappedMilestoneTasks": [
+        "M8-T2"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 52,
+      "focus": "Production rollback readiness",
+      "theory": "Understand rollback SLAs and communication paths.",
+      "practical": "Create rollback runbook with command placeholders.",
+      "deliverable": "Production rollback runbook v1.",
+      "mappedMilestoneTasks": [
+        "M8-T3"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 53,
+      "focus": "Azure mapping lab",
+      "theory": "Compare AWS architecture to Azure service patterns.",
+      "practical": "Translate your baseline design to Azure equivalents.",
+      "deliverable": "AWS-to-Azure mapping sheet.",
+      "mappedMilestoneTasks": [
+        "CC1"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 54,
+      "focus": "GCP mapping lab",
+      "theory": "Compare AWS architecture to GCP service patterns.",
+      "practical": "Translate your baseline design to GCP equivalents.",
+      "deliverable": "AWS-to-GCP mapping sheet.",
+      "mappedMilestoneTasks": [
+        "CC1"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 55,
+      "focus": "Portfolio packaging",
+      "theory": "Learn how to present DevOps capability to collaborators and recruiters.",
+      "practical": "Create a concise case study from this roadmap and outcomes.",
+      "deliverable": "DevOps learning case study draft.",
+      "mappedMilestoneTasks": [
+        "CC2"
+      ],
+      "status": "todo"
+    },
+    {
+      "day": 56,
+      "focus": "8-week final review",
+      "theory": "Consolidate end-to-end DevOps lifecycle knowledge.",
+      "practical": "Complete self-assessment and define next 30-day advanced plan.",
+      "deliverable": "Final scorecard and advanced roadmap.",
+      "mappedMilestoneTasks": [
+        "M8-T3",
+        "CC2"
+      ],
+      "status": "todo"
+    }
+  ],
+  "weeklyCadence": {
+    "studyPercent": 40,
+    "handsOnPercent": 60,
+    "weeklyExitCriteria": [
+      "One demo of what was learned",
+      "One mini incident/rollback simulation",
+      "Short written note: what failed, why, and fix"
+    ]
+  },
+  "roadmapFlowMermaid": "flowchart TD; start[StartDevOpsLearning] --> m1[CIFoundations]; m1 --> m2[ContainerFundamentals]; m2 --> m3[AWSCoreServices]; m3 --> m4[TerraformIaC]; m4 --> m5[StagingCD]; m5 --> m6[Observability]; m6 --> m7[Notifications]; m7 --> m8[ProductionReadiness]; m8 --> finish[OperateAndImprove];",
+  "statusLegend": {
+    "todo": "Not started",
+    "in_progress": "Currently learning or implementing",
+    "done": "Completed and verified"
+  },
+  "nextSession": {
+    "focus": "M1-T1 + M1-T2",
+    "estimatedTime": "45-60 minutes",
+    "definitionOfDone": "Can explain current CI pipeline and dependency graph in plain language"
+  }
+}

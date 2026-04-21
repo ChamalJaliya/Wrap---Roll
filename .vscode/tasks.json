@@ -1,0 +1,179 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Wrap: All dev servers (7 separate panels)",
+      "dependsOrder": "parallel",
+      "dependsOn": [
+        "Wrap: API :4000",
+        "Wrap: Client :3000",
+        "Wrap: Admin :3001",
+        "Wrap: Cashier :3002",
+        "Wrap: Kitchen :3003",
+        "Wrap: Delivery :3004",
+        "Wrap: Mobile iOS (Simulator)"
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "wrap-roll",
+        "showReuseMessage": false
+      }
+    },
+    {
+      "label": "Wrap: All dev servers (system Terminal, one tab each)",
+      "type": "shell",
+      "command": "npm run dev:terminals",
+      "options": { "cwd": "${workspaceFolder}" },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "showReuseMessage": false,
+        "clear": false,
+        "group": "wrap-roll"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Wrap: Ensure local Redis :6379",
+      "type": "shell",
+      "command": "npm run ensure:redis:local",
+      "options": { "cwd": "${workspaceFolder}" },
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared",
+        "showReuseMessage": false,
+        "clear": false,
+        "group": "wrap-roll"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Wrap: Mobile iOS (Simulator)",
+      "type": "shell",
+      "command": "npm run start:mobile:ios",
+      "options": { "cwd": "${workspaceFolder}" },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "showReuseMessage": false,
+        "clear": false,
+        "group": "wrap-roll"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Wrap: Mobile Metro only (Expo)",
+      "type": "shell",
+      "command": "npm run start:mobile",
+      "options": { "cwd": "${workspaceFolder}" },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "showReuseMessage": false,
+        "clear": false,
+        "group": "wrap-roll"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Wrap: API :4000",
+      "type": "shell",
+      "command": "npm run start:api",
+      "options": { "cwd": "${workspaceFolder}" },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "showReuseMessage": false,
+        "clear": false,
+        "group": "wrap-roll"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Wrap: API :4000 (watch, dist)",
+      "type": "shell",
+      "command": "npm run start:api:dev",
+      "options": { "cwd": "${workspaceFolder}" },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "showReuseMessage": false,
+        "clear": false,
+        "group": "wrap-roll"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Wrap: Client :3000",
+      "type": "shell",
+      "command": "npm run start:client",
+      "options": { "cwd": "${workspaceFolder}" },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "showReuseMessage": false,
+        "clear": false,
+        "group": "wrap-roll"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Wrap: Admin :3001",
+      "type": "shell",
+      "command": "npm run start:admin",
+      "options": { "cwd": "${workspaceFolder}" },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "showReuseMessage": false,
+        "clear": false,
+        "group": "wrap-roll"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Wrap: Cashier :3002",
+      "type": "shell",
+      "command": "npm run start:cashier",
+      "options": { "cwd": "${workspaceFolder}" },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "showReuseMessage": false,
+        "clear": false,
+        "group": "wrap-roll"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Wrap: Kitchen :3003",
+      "type": "shell",
+      "command": "npm run start:kitchen",
+      "options": { "cwd": "${workspaceFolder}" },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "showReuseMessage": false,
+        "clear": false,
+        "group": "wrap-roll"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Wrap: Delivery :3004",
+      "type": "shell",
+      "command": "npm run start:delivery",
+      "options": { "cwd": "${workspaceFolder}" },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "showReuseMessage": false,
+        "clear": false,
+        "group": "wrap-roll"
+      },
+      "problemMatcher": []
+    }
+  ]
+}

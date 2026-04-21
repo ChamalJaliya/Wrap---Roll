@@ -1,0 +1,25 @@
+FROM node:20-bookworm-slim
+
+WORKDIR /workspace
+
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV CHOKIDAR_USEPOLLING=true
+
+COPY package.json package-lock.json ./
+COPY nx.json tsconfig.base.json ./
+COPY eslint.config.mjs ./
+COPY apps ./apps
+COPY services ./services
+COPY libs ./libs
+COPY scripts ./scripts
+COPY docs ./docs
+COPY *.md ./
+
+RUN npm config set fetch-retries 6 \
+  && npm config set fetch-retry-factor 2 \
+  && npm config set fetch-retry-mintimeout 20000 \
+  && npm config set fetch-retry-maxtimeout 120000 \
+  && npm install --no-audit --no-fund \
+  && npx prisma generate --schema=services/api/prisma/schema.prisma
+
+CMD ["npm", "run", "start:client"]

@@ -1,0 +1,13 @@
+{
+  "name": "@wrap-roll/contracts",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.lib.json"
+  },
+  "dependencies": {
+    "zod": "*"
+  }
+}

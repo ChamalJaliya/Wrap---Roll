@@ -1,0 +1,299 @@
+{
+  "project": "Wrap & Roll",
+  "version": "1.5.0",
+  "lastUpdated": "2026-04-07T23:15:00+05:30",
+  "activeSprint": "S20",
+  "systemHealth": "100% (Production Ready - High Fidelity)",
+  "lockedStack": {
+    "repository": "NX Monorepo",
+    "frontend": "Next.js App Router (14+)",
+    "apiGateway": "NestJS",
+    "stateManagement": "Zustand (per-app isolated)",
+    "database": "PostgreSQL via Supabase",
+    "realtime": "Supabase Realtime (WebSockets)",
+    "auth": "Supabase JWT + Role-Based Access Control",
+    "paymentGateway": "PayHere (Sandbox/Production Ready)",
+    "ui": "Tailwind + Shadcn + HSL Design Tokens",
+    "designSystem": "Twenty Master Primitives (shared-ui)",
+    "i18n": "next-intl (en, si, ta)"
+  },
+  "tasks": [
+    {
+      "id": "S0-ALL",
+      "title": "Infrastructure Governance & Stack Lock",
+      "sprint": "S0",
+      "status": "DONE",
+      "resolvedAt": "2026-04-05T09:00:00+05:30"
+    },
+    {
+      "id": "S1-ALL",
+      "title": "Monorepo & API Backbone",
+      "sprint": "S1",
+      "status": "DONE",
+      "resolvedAt": "2026-04-05T10:00:00+05:30"
+    },
+    {
+      "id": "S2-ALL",
+      "title": "Customer Web App (Menu → Builder → Cart → PayHere → Tracking)",
+      "sprint": "S2",
+      "status": "DONE",
+      "resolvedAt": "2026-04-05T11:30:00+05:30"
+    },
+    {
+      "id": "S3-ALL",
+      "title": "Operational Core (KDS & Offline POS)",
+      "sprint": "S3",
+      "status": "DONE",
+      "resolvedAt": "2026-04-05T12:00:00+05:30"
+    },
+    {
+      "id": "S4-ALL",
+      "title": "Governance & Logistics (Admin & Delivery)",
+      "sprint": "S4",
+      "status": "DONE",
+      "resolvedAt": "2026-04-05T12:45:00+05:30"
+    },
+    {
+      "id": "S5-001",
+      "title": "Auth-Guarded Checkout (Supabase Magic Link)",
+      "sprint": "S5",
+      "domain": "IDENTITY",
+      "status": "DONE",
+      "priority": "CRITICAL",
+      "resolution": "Magic link sign-in required before payment hash generation.",
+      "resolvedAt": "2026-04-05T13:01:00+05:30"
+    },
+    {
+      "id": "S5-002",
+      "title": "Account Settings & Profiles",
+      "sprint": "S5",
+      "domain": "IDENTITY",
+      "status": "DONE",
+      "priority": "HIGH",
+      "resolution": "Profile and order history page implemented.",
+      "resolvedAt": "2026-04-05T17:23:00+05:30"
+    },
+    {
+      "id": "S6-001",
+      "title": "Global Navbar & Footer (shared-ui)",
+      "sprint": "S6",
+      "domain": "UI_UX",
+      "status": "DONE",
+      "priority": "CRITICAL",
+      "resolution": "Navbar with auth state and glassmorphism + Footer with business context live.",
+      "resolvedAt": "2026-04-05T12:58:00+05:30"
+    },
+    {
+      "id": "S6-002",
+      "title": "Premium Landing Page + Public Pages (Home/About/Contact)",
+      "sprint": "S6",
+      "domain": "MARKETING",
+      "status": "DONE",
+      "priority": "HIGH",
+      "resolution": "Covered under S10-004 (SEO & Marketing Landing Page).",
+      "resolvedAt": "2026-04-05T17:22:00+05:30"
+    },
+    {
+      "id": "S7-001",
+      "title": "Shadcn UI + Dark/Light Theme Engine",
+      "sprint": "S7",
+      "domain": "UI_UX",
+      "status": "DONE",
+      "priority": "HIGH",
+      "resolution": "globals.css (Mandarin HSL palette, light/dark), Button/Card/Badge/Input/Navbar/ThemeToggle refactored to CVA Shadcn primitives.",
+      "resolvedAt": "2026-04-05T16:13:00+05:30"
+    },
+    {
+      "id": "S7-002",
+      "title": "Cookies Banner + Privacy Policy + TOS",
+      "sprint": "S7",
+      "domain": "LEGAL",
+      "status": "DONE",
+      "priority": "MEDIUM",
+      "resolution": "Cookie consent logic and legal docs deployed.",
+      "resolvedAt": "2026-04-05T17:23:00+05:30"
+    },
+    {
+      "id": "SEC-001",
+      "title": "IDOR risk on GET /orders/:id — add ownership guard",
+      "sprint": "S8",
+      "domain": "SECURITY",
+      "status": "DONE",
+      "priority": "CRITICAL",
+      "resolution": "Guard implemented in OrderController using user.sub vs order.customerId.",
+      "resolvedAt": "2026-04-05T16:26:00+05:30"
+    },
+    {
+      "id": "SEC-002",
+      "title": "Replace client-supplied orderId with server-minted IDs",
+      "sprint": "S8",
+      "domain": "SECURITY",
+      "status": "DONE",
+      "priority": "CRITICAL",
+      "resolution": "OrderService explicitly ignores client IDs and uses Prisma default(uuid).",
+      "resolvedAt": "2026-04-05T16:26:00+05:30"
+    },
+    {
+      "id": "SEC-003",
+      "title": "PayHere webhook idempotency / deduplication store",
+      "sprint": "S8",
+      "domain": "SECURITY",
+      "status": "DONE",
+      "priority": "CRITICAL",
+      "resolution": "PaymentService uses processedWebhooks Set to deduplicate.",
+      "resolvedAt": "2026-04-05T16:26:00+05:30"
+    },
+    {
+      "id": "SEC-004",
+      "title": "Add rate limiting on public & sensitive API endpoints",
+      "sprint": "S8",
+      "domain": "SECURITY",
+      "status": "DONE",
+      "priority": "HIGH",
+      "resolution": "Implemented @nestjs/throttler globally.",
+      "resolvedAt": "2026-04-05T16:31:00+05:30"
+    },
+    {
+      "id": "INT-001",
+      "title": "Align checkout payload mapper with WrapOrderSchema",
+      "sprint": "S8",
+      "domain": "API",
+      "status": "DONE",
+      "priority": "CRITICAL",
+      "resolution": "Server-side forced Zod validation in OrderService.",
+      "resolvedAt": "2026-04-05T16:26:00+05:30"
+    },
+    {
+      "id": "ARC-001",
+      "title": "Document KDS direct DB read strategy",
+      "sprint": "S9",
+      "domain": "ARCHITECTURE",
+      "status": "DONE",
+      "resolvedAt": "2026-04-05T16:36:00+05:30"
+    },
+    {
+      "id": "S10-001",
+      "title": "Analytics & Growth Dashboard",
+      "sprint": "S10",
+      "status": "DONE",
+      "resolvedAt": "2026-04-05T17:22:00+05:30"
+    },
+    {
+      "id": "S11-001",
+      "title": "Notification Engine Implementation",
+      "sprint": "S11",
+      "domain": "API",
+      "status": "DONE",
+      "priority": "HIGH",
+      "resolution": "Event-driven SMS/Push notifications for PAID, READY, and IN_TRANSIT events.",
+      "resolvedAt": "2026-04-06T10:00:00+05:30"
+    },
+    {
+      "id": "S12-001",
+      "title": "Promotional Engine & Coupon System",
+      "sprint": "S12",
+      "domain": "API",
+      "status": "DONE",
+      "priority": "HIGH",
+      "resolution": "Validation for non-stackable coupons with 50% max discount safety caps.",
+      "resolvedAt": "2026-04-06T11:00:00+05:30"
+    },
+    {
+      "id": "S14-ALL",
+      "title": "Design System Overhaul (Sovereign Tokens)",
+      "sprint": "S14",
+      "domain": "UI_UX",
+      "status": "DONE",
+      "priority": "CRITICAL",
+      "resolution": "Refactored all apps to use centralized HSL tokens and shared master primitives.",
+      "resolvedAt": "2026-04-06T18:00:00+05:30"
+    },
+    {
+      "id": "S17-001",
+      "title": "Smart Menu Engine & Builder Rescue",
+      "sprint": "S17",
+      "domain": "CLIENT",
+      "status": "DONE",
+      "priority": "HIGH",
+      "resolution": "Restored real-time pricing and dynamic modifier selection in the Wrap Builder.",
+      "resolvedAt": "2026-04-07T08:00:00+05:30"
+    },
+    {
+      "id": "S19-001",
+      "title": "Vault Engine (Saved Addresses & Payments)",
+      "sprint": "S19",
+      "domain": "IDENTITY",
+      "status": "DONE",
+      "priority": "HIGH",
+      "resolution": "Prisma schema and API logic for secure address book and card tokenization.",
+      "resolvedAt": "2026-04-07T14:30:00+05:30"
+    },
+    {
+      "id": "S20-001",
+      "title": "Centralize Shared Contracts Across API + Apps",
+      "sprint": "S20",
+      "domain": "ARCHITECTURE",
+      "status": "DONE",
+      "priority": "CRITICAL",
+      "resolution": "Moved duplicated enums/interfaces to @wrap-roll/contracts and replaced local duplicates across admin/client/cashier/kitchen/delivery/API.",
+      "resolvedAt": "2026-04-07T20:40:00+05:30"
+    },
+    {
+      "id": "S20-002",
+      "title": "Type Safety Pass on Seed + Service Internals",
+      "sprint": "S20",
+      "domain": "API",
+      "status": "DONE",
+      "priority": "HIGH",
+      "resolution": "Reduced any hotspots in seed/order/menu/inventory paths with safer unknown narrowing and contract-aligned DTO usage.",
+      "resolvedAt": "2026-04-07T21:10:00+05:30"
+    },
+    {
+      "id": "S20-003",
+      "title": "Stabilize API Test Suite + Stress Isolation",
+      "sprint": "S20",
+      "domain": "QUALITY",
+      "status": "DONE",
+      "priority": "HIGH",
+      "resolution": "Fixed failing contract/lifecycle tests, added deterministic test harness updates, and made stress suite opt-in via RUN_STRESS_TESTS=1 with docs.",
+      "resolvedAt": "2026-04-07T21:55:00+05:30"
+    },
+    {
+      "id": "S20-004",
+      "title": "Prisma Client Drift Cleanup (Remove Temporary any Casts)",
+      "sprint": "S20",
+      "domain": "API",
+      "status": "DONE",
+      "priority": "CRITICAL",
+      "resolution": "Ran prisma generate; replaced (prisma|tx) as any delegates with typed businessSettings, paymentEvent, inventory/COGS/overhead delegates in order, payment, seed, backfill, inventory, analytics, settings, stress test setup; seed customer OR query uses Prisma.CustomerWhereInput.",
+      "resolvedAt": "2026-04-07T23:12:00+05:30"
+    },
+    {
+      "id": "S20-005",
+      "title": "CI Governance Gates for Contracts & API Health",
+      "sprint": "S20",
+      "domain": "DEVOPS",
+      "status": "TODO",
+      "priority": "HIGH",
+      "nextAction": "Make contracts duplicate check, enum parity test, and API test run mandatory in CI."
+    }
+  ],
+  "sprintSummary": {
+    "S0-S10": {
+      "total": 35,
+      "done": 35,
+      "note": "Initial Infrastructure & Market Readiness"
+    },
+    "S11-S19": {
+      "total": 12,
+      "done": 12,
+      "note": "High-Fidelity & Operational Maturity - ALL DONE"
+    },
+    "S20": {
+      "total": 5,
+      "done": 4,
+      "todo": 1,
+      "note": "Governance, typing hardening, and release confidence"
+    }
+  }
+}
