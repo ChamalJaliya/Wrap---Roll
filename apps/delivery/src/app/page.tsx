@@ -323,7 +323,7 @@ export default function DeliveryDispatchPage() {
                             type="button"
                             variant="secondary"
                             className="w-full min-w-0"
-                            onClick={() => collectCash(order.id)}
+                            onClick={() => collectCash(order.id, order.total_amount)}
                           >
                             Collect cash
                           </Button>

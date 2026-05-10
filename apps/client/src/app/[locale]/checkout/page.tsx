@@ -742,6 +742,10 @@ export default function CheckoutPage() {
       if (typeof window !== 'undefined') {
         localStorage.setItem('last_order_id', String(orderId));
         localStorage.setItem('last_order_phone', String(receiverPhone));
+        localStorage.setItem(
+          'last_order_email',
+          String(user?.email ?? '').trim(),
+        );
       }
 
       if (paymentMethod === 'cash') {

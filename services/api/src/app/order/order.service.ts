@@ -22,9 +22,16 @@ import {
 import {
   WrapOrderSchema,
   computeClientWebCheckoutTotals,
+  isPersistedOrderMoneyRowBalanced,
+  sumQueueOrderLineTotals,
   normalizeCheckoutVatRate,
   parseDeliveryJson,
   computeDeliveryFeeLkr,
+  ReplaceOrderLineItemsBodySchema,
+  type ReplaceOrderLineItemsBody,
+  evaluateLineItemReplacementPolicy,
+  validateLineItemsReplacementSave,
+  evaluateSupportDetailsEditPolicy,
   type OpsActivityEventRow,
   type PaymentEventRow,
   type QueueOrder,
@@ -38,18 +45,25 @@ import {
   type OpsQueueOrder,
   type ResponsePersona,
   SHOPPER_ROLE,
+  POS_CARD_COLLECTION_SUPERVISOR_SCOPE,
 } from '@wrap-roll/contracts';
 import { ZodError } from 'zod';
+import { normalizeOptionalPositiveMoney, parseCashTenderFromAuditNote } from '@wrap-roll/order-kit';
 import { PrismaService } from '../prisma/prisma.service';
 import { PRISMA_READ } from '../prisma/prisma.tokens';
 import type { PrismaReadService } from '../prisma/prisma-read.service';
 import { QueueResponseCacheService } from './queue-response-cache.service';
 import { StaffService } from '../staff/staff.service';
 import { CouponService } from '../coupon/coupon.service';
+import { SupervisorService } from '../supervisor/supervisor.service';
 import { CustomerService } from '../customer/customer.service';
 import { RequestUser } from '../../auth/current-user.decorator';
 import { normalizePaymentConfig } from '../settings/payment-config';
 import { validateCustomerOrderTiming } from '../settings/operations-calendar-rules';
+import {
+  computeOperationalCalendarDate,
+  utcCalendarDayRangeInTimeZone,
+} from '../settings/operational-calendar-date';
 import { warnIfQueueProjectionAnomalies } from './queue-projection-warn';
 import { buildQueueOrderFindManyArgs } from './order-queue-find';
 import { LocationService } from '../location/location.service';
@@ -176,6 +190,33 @@ type OrderPrismaSidecars = {
     }): Promise<OpsActivityDbRow[]>;
   };
 };
+
+/**
+ * If `pricing.manualDiscountAmount` is missing after Zod (strip/proxy edge cases), recover it
+ * from the raw JSON so supervisor manual discount cannot silently drop on create.
+ */
+function mergeManualDiscountFromRawPayload(parsed: WrapOrder, normalized: unknown): WrapOrder {
+  const existing = normalizeOptionalPositiveMoney(parsed.pricing.manualDiscountAmount);
+  if (existing !== undefined) return parsed;
+  if (typeof normalized !== 'object' || normalized === null) return parsed;
+  const raw = normalized as Record<string, unknown>;
+  const fromPricing =
+    raw.pricing && typeof raw.pricing === 'object'
+      ? normalizeOptionalPositiveMoney(
+          (raw.pricing as Record<string, unknown>).manualDiscountAmount,
+        )
+      : undefined;
+  const fromTop = normalizeOptionalPositiveMoney(raw.manualDiscountAmount);
+  const recovered = fromPricing ?? fromTop;
+  if (recovered === undefined) return parsed;
+  return {
+    ...parsed,
+    pricing: {
+      ...parsed.pricing,
+      manualDiscountAmount: recovered,
+    },
+  };
+}
 
 /** Client checkout page shape (legacy) — differs from WrapOrder canonical schema. */
 function isClientCheckoutPayload(data: unknown): data is Record<string, unknown> {
@@ -313,6 +354,9 @@ function clientCheckoutToWrapOrderShape(data: Record<string, unknown>): unknown 
         data.customerPhone != null && data.customerPhone !== ''
           ? String(data.customerPhone)
           : undefined,
+      ...(typeof data.customerEmail === 'string' && String(data.customerEmail).includes('@')
+        ? { email: String(data.customerEmail).trim() }
+        : {}),
     },
     items: items.map((i) => {
       const qty = Math.max(1, Math.floor(Number(i.quantity)));
@@ -385,6 +429,7 @@ export class OrderService {
     private readonly queueCache: QueueResponseCacheService,
     private staffService: StaffService,
     private couponService: CouponService,
+    private readonly supervisorService: SupervisorService,
     private customerService: CustomerService,
     private readonly locationService: LocationService,
     private readonly activityService: ActivityService,
@@ -502,48 +547,19 @@ export class OrderService {
     });
   }
 
-  /** Minutes from midnight in `timeZone` (IANA), for same-day open/close rules. */
-  private getBusinessMinuteOfDay(instant: Date, timeZone: string): number {
-    const fmt = new Intl.DateTimeFormat('en-GB', {
-      timeZone,
-      hour: '2-digit',
-      minute: '2-digit',
-      hourCycle: 'h23',
-    });
-    const parts = fmt.formatToParts(instant);
-    const h = Number(parts.find((p) => p.type === 'hour')?.value ?? '0');
-    const m = Number(parts.find((p) => p.type === 'minute')?.value ?? '0');
-    return h * 60 + m;
-  }
-
-  private formatMinutesAsClock(mins: number): string {
-    const h = Math.floor(mins / 60) % 24;
-    const mi = mins % 60;
-    return new Date(2000, 0, 1, h, mi).toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  }
-
-  /** Calendar date YYYY-MM-DD in IANA `timeZone` (for same-day scheduling rules). */
-  private zonedYmd(instant: Date, timeZone: string): string {
-    const fmt = new Intl.DateTimeFormat('en-CA', {
-      timeZone,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    });
-    const parts = fmt.formatToParts(instant);
-    const y = parts.find((p) => p.type === 'year')?.value ?? '1970';
-    const m = parts.find((p) => p.type === 'month')?.value ?? '01';
-    const d = parts.find((p) => p.type === 'day')?.value ?? '01';
-    return `${y}-${m}-${d}`;
-  }
-
+  /**
+   * Queue + reconciliation filter: full **calendar day** in `BusinessSettings.timezone`
+   * `[start, end)` — not `[open, close)`. Otherwise POS orders after closing time disappear
+   * from “today” while still being on the same local date.
+   */
   private async getOperationalWindow(date?: string): Promise<{ start: Date; end: Date; label: string }> {
     const s = await this.orderSidecars().businessSettings.findUnique({
       where: { id: 'singleton' },
     });
+    const tz =
+      typeof s?.timezone === 'string' && s.timezone.trim().length > 0
+        ? s.timezone.trim()
+        : 'Asia/Colombo';
     const openMinsRaw = Number(s?.openingTimeMinutes ?? 0);
     const closeMinsRaw = Number(s?.closingTimeMinutes ?? 24 * 60);
     const openMins = Math.min(24 * 60 - 1, Math.max(0, Number.isFinite(openMinsRaw) ? openMinsRaw : 0));
@@ -551,71 +567,24 @@ export class OrderService {
       24 * 60 - 1,
       Math.max(0, Number.isFinite(closeMinsRaw) ? closeMinsRaw : 24 * 60 - 1),
     );
-    const overnight = closeMins <= openMins;
 
-    const now = new Date();
-    let anchorDate = now;
-    if (date && date !== 'today') {
-      const parsed = new Date(`${date}T00:00:00`);
-      if (Number.isNaN(parsed.getTime())) throw new BadRequestException('Invalid reconciliation date');
-      anchorDate = parsed;
-    } else if (date === 'today' && overnight) {
-      const currentMinutes = now.getHours() * 60 + now.getMinutes();
-      if (currentMinutes < closeMins) {
-        anchorDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    let anchorYmd: string;
+    if (!date || date === 'today') {
+      anchorYmd = computeOperationalCalendarDate({
+        now: new Date(),
+        timeZone: tz,
+        openingTimeMinutes: openMins,
+        closingTimeMinutes: closeMins,
+      });
+    } else {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        throw new BadRequestException('Invalid reconciliation date');
       }
+      anchorYmd = date;
     }
 
-    const dayStart = new Date(
-      anchorDate.getFullYear(),
-      anchorDate.getMonth(),
-      anchorDate.getDate(),
-      0,
-      0,
-      0,
-      0,
-    );
-    const start = new Date(dayStart.getTime() + openMins * 60 * 1000);
-    const end = new Date(
-      dayStart.getTime() +
-        (overnight ? 24 * 60 * 60 * 1000 : 0) +
-        closeMins * 60 * 1000,
-    );
-    return { start, end, label: dayStart.toISOString().slice(0, 10) };
-  }
-
-  private resolveOperationalWindowForReference(
-    reference: Date,
-    openMins: number,
-    closeMins: number,
-  ): { start: Date; end: Date } {
-    const dayStart = new Date(
-      reference.getFullYear(),
-      reference.getMonth(),
-      reference.getDate(),
-      0,
-      0,
-      0,
-      0,
-    );
-    const overnight = closeMins <= openMins;
-    if (!overnight) {
-      return {
-        start: new Date(dayStart.getTime() + openMins * 60_000),
-        end: new Date(dayStart.getTime() + closeMins * 60_000),
-      };
-    }
-    const minsNow = reference.getHours() * 60 + reference.getMinutes();
-    if (minsNow < closeMins) {
-      return {
-        start: new Date(dayStart.getTime() - 24 * 60 * 60 * 1000 + openMins * 60_000),
-        end: new Date(dayStart.getTime() + closeMins * 60_000),
-      };
-    }
-    return {
-      start: new Date(dayStart.getTime() + openMins * 60_000),
-      end: new Date(dayStart.getTime() + 24 * 60 * 60 * 1000 + closeMins * 60_000),
-    };
+    const { start, end } = utcCalendarDayRangeInTimeZone(anchorYmd, tz);
+    return { start, end, label: anchorYmd };
   }
 
   // INT-005 — Fulfillment enum casing mapping
@@ -899,10 +868,11 @@ export class OrderService {
     paymentStatus: PaymentStatus;
     fulfillmentType: FulfillmentType;
     transactionId?: string | null;
-  }): 'immediate' | 'on_delivery' | 'on_pickup' | null {
+  }): 'immediate' | 'on_delivery' | 'on_pickup' | 'at_collection' | null {
     const tx = String(order.transactionId ?? '').toUpperCase();
     if (tx.startsWith('ON_DELIVERY_')) return 'on_delivery';
     if (tx.startsWith('ON_PICKUP_')) return 'on_pickup';
+    if (tx.startsWith('AT_COLLECTION_')) return 'at_collection';
     if (order.paymentMethod !== 'cash') return 'immediate';
     if (tx.startsWith('CASH_')) return 'immediate';
     if (
@@ -920,6 +890,26 @@ export class OrderService {
       return 'on_pickup';
     }
     return 'immediate';
+  }
+
+  /**
+   * Reconciliation "payment method" row: pay-later pendings use a cash placeholder in DB but are not cash yet.
+   */
+  private reconciliationMethodKey(order: {
+    paymentMethod: PaymentMethod;
+    paymentStatus: PaymentStatus;
+    transactionId: string | null;
+  }): 'pay_at_collection' | PaymentMethod {
+    if (order.paymentStatus !== 'pending') return order.paymentMethod;
+    const tx = String(order.transactionId ?? '').toUpperCase();
+    if (
+      tx.startsWith('ON_PICKUP_') ||
+      tx.startsWith('ON_DELIVERY_') ||
+      tx.startsWith('AT_COLLECTION_')
+    ) {
+      return 'pay_at_collection';
+    }
+    return order.paymentMethod;
   }
 
   private canTransition(
@@ -1112,14 +1102,19 @@ export class OrderService {
     return `${p1}-${p2}-${p3}-${p4}-${p5}`;
   }
 
-  async createOrder(data: unknown, idempotencyKey?: string, actor?: RequestUser): Promise<any> {
-    this.logger.log(`Incoming order data: ${JSON.stringify(data)}`);
+  async createOrder(
+    data: unknown,
+    idempotencyKey?: string,
+    actor?: RequestUser,
+    supervisorElevationToken?: string,
+  ): Promise<any> {
     const fromLegacyClientCart = isClientCheckoutPayload(data);
+    this.logger.log(`createOrder: legacyClient=${fromLegacyClientCart} (body not logged)`);
     const normalized = fromLegacyClientCart
       ? clientCheckoutToWrapOrderShape(data as Record<string, unknown>)
       : data;
 
-    let parsed;
+    let parsed: WrapOrder;
     try {
       parsed = WrapOrderSchema.parse(normalized);
     } catch (e) {
@@ -1131,6 +1126,7 @@ export class OrderService {
       }
       throw e;
     }
+    parsed = mergeManualDiscountFromRawPayload(parsed, normalized);
 
     if (fromLegacyClientCart) {
       const legacySource = normalizeLegacyClientSource((data as Record<string, unknown>).source);
@@ -1310,32 +1306,97 @@ export class OrderService {
       parsed.pricing.deliveryFee = deliveryFee;
       parsed.pricing.discountAmount = 0;
       parsed.pricing.total = Math.round((subtotal + tax + deliveryFee) * 100) / 100;
+    } else if (!fromLegacyClientCart && isPosChannel && parsed.fulfillment.type !== 'delivery') {
+      /* Counter / dine-in / takeaway POS: authoritative VAT on line subtotal (mapper leaves tax 0). */
+      const vatRate = normalizeCheckoutVatRate(s?.checkoutVatRate ?? 0.15);
+      const lineSubtotal =
+        Math.round(
+          parsed.items.reduce((acc, it) => acc + Number(it.lineTotal), 0) * 100,
+        ) / 100;
+      parsed.pricing.subtotal = lineSubtotal;
+      parsed.pricing.tax = Math.round(lineSubtotal * vatRate * 100) / 100;
+      parsed.pricing.deliveryFee = 0;
+      parsed.pricing.discountAmount = 0;
+      parsed.pricing.total =
+        Math.round((lineSubtotal + parsed.pricing.tax) * 100) / 100;
     }
 
-    // Objective 4: Coupon Verification during 'placed' status transition (creation)
+    // Coupon + optional POS manual discount (supervisor elevation). VAT on (subtotal − total discount).
+    const vatRateForPricing = normalizeCheckoutVatRate(s?.checkoutVatRate ?? 0.15);
+    const manualRaw = Number(parsed.pricing.manualDiscountAmount ?? 0);
+    const manualRequested =
+      Number.isFinite(manualRaw) && manualRaw > 0 ? Math.round(manualRaw * 100) / 100 : 0;
+
+    const isCashierPos =
+      parsed.source === OrderSource.cashier_pos ||
+      parsed.source === OrderSource.cashier_pos_offline;
+
+    let couponDiscount = 0;
     if (parsed.pricing.discountCode) {
       const couponRes = await this.couponService.validateCoupon(
         parsed.pricing.discountCode,
         parsed.pricing.subtotal,
         parsed.customer?.customerId,
-        parsed.customer?.phone
+        parsed.customer?.phone,
       );
-
       if (!couponRes.valid) {
         throw new BadRequestException(`Coupon Error: ${couponRes.message}`);
       }
+      couponDiscount = couponRes.discountAmount;
+    }
 
-      // Sync the validated discount amount to the order object
-      parsed.pricing.discountAmount = couponRes.discountAmount;
-      
-      // Recalculate final total using server-side validated discount
-      parsed.pricing.total = 
-        parsed.pricing.subtotal - 
-        parsed.pricing.discountAmount + 
-        parsed.pricing.tax + 
-        parsed.pricing.deliveryFee;
+    /** Set when manual discount is authorized; consumed in DB after order persists (single-use token). */
+    let elevationTokenToConsume: string | undefined;
 
-      this.logger.log(`Coupon ${parsed.pricing.discountCode} applied. discountAmount: ${parsed.pricing.discountAmount}`);
+    if (manualRequested > 0) {
+      if (!isCashierPos) {
+        throw new BadRequestException('Manual discount is only allowed on cashier orders.');
+      }
+      if (!actor?.sub) {
+        throw new ForbiddenException('Manual discount requires a staff session.');
+      }
+      const tok = supervisorElevationToken?.trim();
+      if (!tok) {
+        throw new ForbiddenException({
+          code: 'SUPERVISOR_ELEVATION_REQUIRED',
+          message: 'Manual discount requires supervisor step-up.',
+        });
+      }
+      const elevationOk = await this.supervisorService.validateElevationSession(
+        tok,
+        actor.sub,
+        'privileged_operations',
+      );
+      if (!elevationOk) {
+        throw new ForbiddenException({
+          code: 'SUPERVISOR_ELEVATION_INVALID',
+          message: 'Supervisor elevation is missing, expired, or invalid for manual discount.',
+        });
+      }
+      elevationTokenToConsume = tok;
+    }
+
+    const maxDiscount = Math.round(parsed.pricing.subtotal * 0.5 * 100) / 100;
+    const manualDiscount = Math.min(
+      manualRequested,
+      Math.max(0, maxDiscount - couponDiscount),
+    );
+
+    const totalDiscount = Math.round((couponDiscount + manualDiscount) * 100) / 100;
+    parsed.pricing.discountAmount = totalDiscount;
+
+    const taxableBase = Math.max(
+      0,
+      Math.round((parsed.pricing.subtotal - totalDiscount) * 100) / 100,
+    );
+    parsed.pricing.tax = Math.round(taxableBase * vatRateForPricing * 100) / 100;
+    parsed.pricing.total =
+      Math.round((taxableBase + parsed.pricing.tax + parsed.pricing.deliveryFee) * 100) / 100;
+
+    if (parsed.pricing.discountCode || totalDiscount > 0) {
+      this.logger.log(
+        `Order pricing subtotal=${parsed.pricing.subtotal} coupon=${couponDiscount} manual=${manualDiscount} totalDisc=${totalDiscount} tax=${parsed.pricing.tax}`,
+      );
     }
     
     await this.assertMethodEnabled(parsed.payment.method as PaymentMethod);
@@ -1407,6 +1468,7 @@ export class OrderService {
         const guest = await this.customerService.findOrCreateGuestByPhone(
           parsed.customer.name,
           parsed.customer.phone,
+          parsed.customer.email,
         );
         orderData.customerId = guest.id;
       }
@@ -1429,13 +1491,25 @@ export class OrderService {
         },
       });
       if (order.paymentMethod === 'cash' && order.paymentStatus === 'completed') {
+        const tenderAudit = parsed.payment.posCashTenderNote?.trim();
+        const placementNote = tenderAudit
+          ? `Collected at order placement · ${tenderAudit}`
+          : 'Collected at order placement';
         await this.txPaymentSidecar(tx).paymentEvent.create({
           data: {
             orderId: order.id,
             eventType: 'cash_collected',
             paymentMethod: 'cash',
             actorRole: 'CASHIER',
-            note: 'Collected at order placement',
+            note: placementNote.slice(0, 500),
+            ...(tenderAudit
+              ? {
+                  metadataJson: {
+                    posCashTenderNote: tenderAudit.slice(0, 400),
+                    source: 'pos_pay_now_cash',
+                  } as Prisma.InputJsonValue,
+                }
+              : {}),
           },
         });
       }
@@ -1455,6 +1529,25 @@ export class OrderService {
           fulfillmentType: order.fulfillmentType,
         } as Prisma.InputJsonValue,
       });
+
+      if (elevationTokenToConsume && actor?.sub) {
+        const nowConsume = new Date();
+        const consumed = await tx.$executeRawUnsafe(
+          `UPDATE "SupervisorElevationSession" SET "consumedAt" = $1 WHERE "elevationToken" = $2 AND "cashierUserId" = $3 AND "consumedAt" IS NULL AND "expiresAt" > $4`,
+          nowConsume,
+          elevationTokenToConsume.trim(),
+          actor.sub,
+          nowConsume,
+        );
+        if (Number(consumed) !== 1) {
+          throw new ForbiddenException({
+            code: 'SUPERVISOR_ELEVATION_CONSUME_FAILED',
+            message:
+              'Supervisor elevation could not be finalized. Unlock supervisor again and retry.',
+          });
+        }
+      }
+
       return order;
     });
 
@@ -1471,9 +1564,9 @@ export class OrderService {
         if (existing) return existing;
       }
       if (code === 'P2003') {
-        // Usually means a cart item references a menu item that no longer exists.
+        // FK violation: line references a missing MenuItem (removed from menu, wrong id, or stale offline cart).
         throw new BadRequestException(
-          'One or more items are no longer available. Please refresh menu and try again.',
+          'One or more items are no longer available or the menu changed while offline. Refresh the menu, rebuild the cart, and try again.',
         );
       }
       throw error;
@@ -1513,7 +1606,38 @@ export class OrderService {
     actor: RequestUser,
     note?: string,
   ): Promise<any> {
-    return this.markPaymentReceived(orderId, actor, 'cash', note);
+    return this.markPaymentReceived(orderId, actor, 'cash', note, undefined);
+  }
+
+  private async assertCardCollectionSupervisorIfRequired(
+    actor: RequestUser,
+    method: Extract<PaymentMethod, 'cash' | 'card'>,
+    supervisorElevationHeader?: string,
+  ): Promise<void> {
+    if (method !== 'card') return;
+    const row = await this.prisma.businessSettings.findUnique({
+      where: { id: 'singleton' },
+      select: { paymentJson: true },
+    });
+    const cfg = normalizePaymentConfig(row?.paymentJson ?? null);
+    if (cfg.pos?.requireSupervisorForCardCollection !== true) return;
+    if (actor.role === 'ADMIN') return;
+    const hdr = supervisorElevationHeader?.trim();
+    if (!hdr) {
+      throw new ForbiddenException(
+        'Supervisor approval is required to record card payment. Confirm with a manager PIN or ask an admin.',
+      );
+    }
+    const ok = await this.supervisorService.validateElevationSession(
+      hdr,
+      actor.sub,
+      POS_CARD_COLLECTION_SUPERVISOR_SCOPE,
+    );
+    if (!ok) {
+      throw new ForbiddenException(
+        'Supervisor approval is invalid or expired. Verify the manager PIN again.',
+      );
+    }
   }
 
   async markPaymentReceived(
@@ -1521,6 +1645,7 @@ export class OrderService {
     actor: RequestUser,
     method: Extract<PaymentMethod, 'cash' | 'card'>,
     note?: string,
+    supervisorElevationHeader?: string,
   ): Promise<any> {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException('Order not found');
@@ -1549,6 +1674,8 @@ export class OrderService {
     if (!['placed', 'ready', 'in_transit', 'delivered'].includes(order.status)) {
       throw new BadRequestException('Payment can only be collected near handoff');
     }
+
+    await this.assertCardCollectionSupervisorIfRequired(actor, method, supervisorElevationHeader);
 
     const updated = await this.prisma.$transaction(async (tx) => {
       const saved = await tx.order.update({
@@ -1875,6 +2002,14 @@ export class OrderService {
           .filter(([, reason]) => reason !== null),
       ) as QueueOrder['blockedReasonsByStatus'];
 
+      const amendSnap = {
+        status: o.status,
+        paymentStatus: o.paymentStatus,
+        fulfillmentType: o.fulfillmentType,
+      };
+      const lineReplacePol = evaluateLineItemReplacementPolicy(amendSnap, role);
+      const supportPol = evaluateSupportDetailsEditPolicy(amendSnap, role);
+
       return {
         id: o.id,
         status: o.status,
@@ -1936,10 +2071,35 @@ export class OrderService {
             this.canTransition(o.status, 'delivered', role, context),
           canVoid: this.canTransition(o.status, 'voided', role, context),
           canRefund: this.canTransition(o.status, 'refunded', role, context),
+          canReplaceLineItems: lineReplacePol.allowed,
+          lineReplaceBlockedMessage: lineReplacePol.allowed
+            ? null
+            : ('message' in lineReplacePol ? lineReplacePol.message : null),
+          canEditSupportDetails: supportPol.allowed,
+          supportEditBlockedMessage: supportPol.allowed
+            ? null
+            : ('message' in supportPol ? supportPol.message : null),
         },
         blockedReasonsByStatus,
       };
     });
+
+    if (persona === 'ops') {
+      for (const row of mapped) {
+        if (!isPersistedOrderMoneyRowBalanced(row)) {
+          this.logger.warn(
+            `Queue pricing invariant: order ${row.id} stored subtotal/discount/tax/total do not reconcile.`,
+          );
+        }
+        const lineSum = sumQueueOrderLineTotals(row.items);
+        const sub = Number(row.subtotal ?? 0);
+        if (row.items && row.items.length > 0 && Math.abs(lineSum - sub) > 0.05) {
+          this.logger.warn(
+            `Queue pricing invariant: order ${row.id} sum(lineTotal)=${lineSum} !== subtotal=${sub}`,
+          );
+        }
+      }
+    }
 
     const sorted = [...mapped].sort((a, b) => this.compareQueueOrderPriority(a, b));
     const projected = sorted.map((q) => projectQueueOrderForPersona(persona, q));
@@ -2048,6 +2208,18 @@ export class OrderService {
     const cashierEvent = staffEvents.find((e) => String(e.actorRole ?? '').toUpperCase() === 'CASHIER');
     const kitchenEvent = staffEvents.find((e) => String(e.actorRole ?? '').toUpperCase() === 'KITCHEN');
 
+    let cashReceivedLkr: number | undefined;
+    let changeReturnedLkr: number | undefined;
+    for (const e of staffEvents) {
+      if (String(e.eventType) !== 'cash_collected') continue;
+      const parsed = parseCashTenderFromAuditNote(e.note);
+      if (parsed) {
+        cashReceivedLkr = parsed.tenderLkr;
+        changeReturnedLkr = parsed.changeLkr;
+        break;
+      }
+    }
+
     return {
       id: order.id,
       status: order.status,
@@ -2068,11 +2240,12 @@ export class OrderService {
       estimatedReadyTime: order.estimatedReadyTime,
       placedAt: order.placedAt,
       updatedAt: order.updatedAt,
-      subtotal: order.subtotal,
-      discountAmount: order.discountAmount,
-      tax: order.tax,
-      deliveryFee: order.deliveryFee,
-      total: order.total,
+      subtotal: Number(order.subtotal ?? 0),
+      discountCode: order.discountCode ?? null,
+      discountAmount: Number(order.discountAmount ?? 0),
+      tax: Number(order.tax ?? 0),
+      deliveryFee: Number(order.deliveryFee ?? 0),
+      total: Number(order.total ?? 0),
       customer: {
         id: order.customer?.id ?? null,
         name: order.customerName ?? order.customer?.name ?? null,
@@ -2083,8 +2256,12 @@ export class OrderService {
       kitchenName: kitchenEvent ? this.actorDisplayNameFromEvent(kitchenEvent) : null,
       staffScheduleOverride:
         (order as { staffScheduleOverride?: boolean }).staffScheduleOverride === true,
+      ...(cashReceivedLkr !== undefined && changeReturnedLkr !== undefined
+        ? { cashReceivedLkr, changeReturnedLkr }
+        : {}),
       items: order.items.map((item) => ({
         id: item.id,
+        menuItemId: item.menuItemId,
         name: item.name,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
@@ -2154,12 +2331,14 @@ export class OrderService {
         status: true,
         paymentMethod: true,
         paymentStatus: true,
+        transactionId: true,
         total: true,
       },
     });
     const safeNum = (v: unknown) => Number(v ?? 0);
-    const byMethod = ['cash', 'card', 'payhere', 'online'].map((method) => {
-      const list = orders.filter((o) => o.paymentMethod === method);
+    const methodKeys = ['pay_at_collection', 'cash', 'card', 'payhere', 'online'] as const;
+    const byMethod = methodKeys.map((method) => {
+      const list = orders.filter((o) => this.reconciliationMethodKey(o) === method);
       const completed = list.filter((o) => o.paymentStatus === 'completed');
       const pending = list.filter((o) => o.paymentStatus === 'pending');
       const failed = list.filter((o) => o.paymentStatus === 'failed');
@@ -2337,6 +2516,17 @@ export class OrderService {
   ) {
     const existing = await this.prisma.order.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Order not found');
+    const supportGate = evaluateSupportDetailsEditPolicy(
+      {
+        status: existing.status,
+        paymentStatus: existing.paymentStatus,
+        fulfillmentType: existing.fulfillmentType,
+      },
+      String(actor.role ?? 'ADMIN'),
+    );
+    if (!supportGate.allowed && 'message' in supportGate) {
+      throw new BadRequestException(supportGate.message);
+    }
     if (['delivered', 'cancelled', 'voided', 'refunded'].includes(existing.status)) {
       throw new BadRequestException('Cannot edit a completed/closed order');
     }
@@ -2386,6 +2576,150 @@ export class OrderService {
     });
     this.notifyQueueProjectionChanged({ orderId: id, type: 'order.support_updated' });
     return updated;
+  }
+
+  async replaceOrderLineItems(id: string, actor: RequestUser, body: unknown): Promise<any> {
+    let parsed: ReplaceOrderLineItemsBody;
+    try {
+      parsed = ReplaceOrderLineItemsBodySchema.parse(body);
+    } catch (e) {
+      if (e instanceof ZodError) {
+        throw new BadRequestException({
+          message: 'Invalid line-items payload',
+          issues: e.flatten(),
+        });
+      }
+      throw e;
+    }
+
+    const existing = await this.prisma.order.findUnique({
+      where: { id },
+      include: { items: true, customer: true },
+    });
+    if (!existing) throw new NotFoundException('Order not found');
+
+    const role = String(actor.role ?? 'ADMIN');
+    const snap = {
+      status: existing.status,
+      paymentStatus: existing.paymentStatus,
+      fulfillmentType: existing.fulfillmentType,
+    };
+    const gate = validateLineItemsReplacementSave(snap, role, parsed.adminOverrideReason);
+    if (!gate.allowed && 'code' in gate) {
+      if (gate.code === 'OVERRIDE_REASON_REQUIRED') {
+        throw new BadRequestException(gate.message);
+      }
+      throw new ForbiddenException(gate.message);
+    }
+
+    const s = await this.orderSidecars().businessSettings.findUnique({
+      where: { id: 'singleton' },
+    });
+    const vatRate = normalizeCheckoutVatRate(s?.checkoutVatRate ?? 0.15);
+    const subtotal =
+      Math.round(parsed.items.reduce((acc, it) => acc + it.lineTotal, 0) * 100) / 100;
+
+    const existingDisc = Math.round(Number(existing.discountAmount) * 100) / 100;
+    const maxTotalDiscount = Math.round(subtotal * 0.5 * 100) / 100;
+
+    let discountCode: string | null = existing.discountCode;
+    let discountAmount = 0;
+    if (discountCode) {
+      const couponRes = await this.couponService.validateCoupon(
+        discountCode,
+        subtotal,
+        existing.customerId ?? undefined,
+        existing.customerPhone ?? existing.customer?.phone ?? undefined,
+      );
+      if (couponRes.valid) {
+        discountAmount = Math.round(couponRes.discountAmount * 100) / 100;
+      } else {
+        discountCode = null;
+        discountAmount = 0;
+      }
+    }
+
+    if (!discountCode && existingDisc > 0) {
+      /* Manual-only (supervisor) discount: no coupon code — replaceOrderLineItems used to drop this entirely. */
+      discountAmount = Math.min(existingDisc, maxTotalDiscount);
+    }
+
+    const taxableBase = Math.max(0, Math.round((subtotal - discountAmount) * 100) / 100);
+    const tax = Math.round(taxableBase * vatRate * 100) / 100;
+    const deliveryFee = Math.round(Number(existing.deliveryFee) * 100) / 100;
+    const total = Math.round((taxableBase + tax + deliveryFee) * 100) / 100;
+
+    const order = await this.prisma.$transaction(async (tx) => {
+      await tx.orderItem.deleteMany({ where: { orderId: id } });
+      await tx.orderItem.createMany({
+        data: parsed.items.map((it) => ({
+          id: it.lineItemId,
+          orderId: id,
+          menuItemId: it.wrapId,
+          name: it.name,
+          quantity: it.quantity,
+          unitPrice: it.unitPrice,
+          lineTotal: it.lineTotal,
+          modifiersJson: it.modifiers as Prisma.InputJsonValue,
+        })),
+      });
+      const updated = await tx.order.update({
+        where: { id },
+        data: {
+          subtotal,
+          discountCode,
+          discountAmount,
+          tax,
+          total,
+        },
+        include: { items: true, customer: true },
+      });
+      await this.txPaymentSidecar(tx).paymentEvent.create({
+        data: {
+          orderId: id,
+          eventType: 'order_lines_replaced',
+          actorRole: actor.role,
+          actorUserId: actor.sub,
+          note:
+            parsed.note?.trim() ||
+            parsed.adminOverrideReason?.trim() ||
+            'Line items replaced',
+          metadataJson: {
+            itemCount: parsed.items.length,
+            previousItemCount: existing.items.length,
+            adminOverrideReason: parsed.adminOverrideReason ?? null,
+            actorName: actor.fullName ?? null,
+          },
+        },
+      });
+      await this.outboxService.appendUsingTx(tx, {
+        eventType: 'order.lines_replaced',
+        eventVersion: 1,
+        entityType: 'order',
+        entityId: id,
+        correlationId: actor.sub ?? null,
+        idempotencyKey: `order.lines_replaced:${id}:${randomUUID()}`,
+        payloadJson: {
+          orderId: id,
+          itemCount: parsed.items.length,
+        } as Prisma.InputJsonValue,
+      });
+      return updated;
+    });
+
+    await this.recordOpsActivity({
+      entityType: 'order',
+      entityId: id,
+      eventType: 'order.lines_replaced',
+      summary: 'Order line items replaced',
+      actor,
+      metadataJson: {
+        itemCount: parsed.items.length,
+        adminOverride: Boolean(parsed.adminOverrideReason?.trim()),
+      },
+    });
+    this.notifyQueueProjectionChanged({ orderId: id, type: 'order.lines_replaced' });
+    return order;
   }
 
   async getOrderById(id: string): Promise<any> {

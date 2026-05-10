@@ -42,6 +42,8 @@
     "clear:logs:local": "npx tsx services/api/src/scripts/clear-local-logs.ts",
     "reset:seed:local": "npm run seed",
     "clean:local": "node -e \"const fs=require('fs');const path=require('path');const root=process.cwd();const rm=p=>{try{fs.rmSync(p,{recursive:true,force:true});}catch{}};['.nx/cache','.nx/workspace-data','dist','coverage','apps/client/.next','apps/admin/.next','apps/cashier/.next','apps/kitchen/.next','apps/delivery/.next'].forEach(p=>rm(path.join(root,p)));const skip=new Set(['node_modules','.git','dist']);(function walk(d){let e;try{e=fs.readdirSync(d,{withFileTypes:true});}catch{return;}for(const x of e){const n=x.name,f=path.join(d,n);if(x.isDirectory()){if(!skip.has(n))walk(f);}else if(n==='tsconfig.tsbuildinfo')rm(f);}})(root);for(const log of ['api.log','admin.log','cashier.log','client.log','delivery.log','kitchen.log']){rm(path.join(root,log));}console.log('Cleaned .next, dist, Nx cache, tsbuildinfo, and root *.log.');\"",
+    "clear:nx-cache": "npx nx reset",
+    "api:fresh-build": "npx nx reset && node -e \"const fs=require('fs');const p=require('path');const d=p.join(process.cwd(),'dist/services/api');try{fs.rmSync(d,{recursive:true,force:true});console.log('Removed dist/services/api');}catch(e){console.log('dist/services/api already absent');}\" && npx nx run api:build --skip-nx-cache",
     "build": "nx run-many --target=build --all",
     "test": "nx run-many --target=test --all",
     "lint": "nx run-many --target=lint --all",

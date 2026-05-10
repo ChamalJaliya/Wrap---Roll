@@ -6,6 +6,7 @@ import { AuthModule, SupabaseAuthGuard, RolesGuard } from '../auth';
 import { CouponModule } from './coupon/coupon.module';
 import { MenuModule } from './menu/menu.module';
 import { StaffModule } from './staff/staff.module';
+import { SupervisorModule } from './supervisor/supervisor.module';
 import { CustomerModule } from './customer/customer.module';
 import { OrderModule } from './order/order.module';
 import { PaymentModule } from './payment/payment.module';
@@ -29,6 +30,7 @@ import { OutboxModule } from './outbox/outbox.module';
     CouponModule,
     MenuModule,
     StaffModule,
+    SupervisorModule,
     CustomerModule,
     OrderModule,
     PaymentModule,

@@ -270,6 +270,17 @@ export class AnalyticsService {
       },
     });
 
+    const cardEventsRaw = await this.prisma.paymentEvent.findMany({
+      where: {
+        createdAt: { gte: startOfDay, lte: endOfDay },
+        eventType: 'card_collected',
+      },
+      include: {
+        order: { select: { total: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
     const cashOrders = orders.filter((o) => o.paymentMethod === 'cash');
     const cashPending = cashOrders.filter((o) => o.paymentStatus !== 'completed');
     const cashCompleted = cashOrders.filter((o) => o.paymentStatus === 'completed');
@@ -285,6 +296,25 @@ export class AnalyticsService {
       if (role === 'CASHIER' || role === 'ADMIN') byRole.pos += Number(o.total);
     }
 
+    let cardTotalLkr = 0;
+    const card_collection = {
+      count: cardEventsRaw.length,
+      total_lkr: 0,
+      events: cardEventsRaw.map((e) => {
+        const amt = Number(e.order?.total ?? 0);
+        cardTotalLkr += amt;
+        return {
+          order_id: e.orderId,
+          amount_lkr: Number(amt.toFixed(2)),
+          actor_role: e.actorRole ?? null,
+          actor_user_id: e.actorUserId ?? null,
+          note: e.note ?? null,
+          recorded_at: e.createdAt.toISOString(),
+        };
+      }),
+    };
+    card_collection.total_lkr = Number(cardTotalLkr.toFixed(2));
+
     return {
       date: startOfDay.toISOString().split('T')[0],
       cash_pending_count: cashPending.length,
@@ -296,6 +326,7 @@ export class AnalyticsService {
       expected_cash_total: Number(expectedCash.toFixed(2)),
       collected_cash_total: Number(collectedCash.toFixed(2)),
       variance: Number((expectedCash - collectedCash).toFixed(2)),
+      card_collection,
     };
   }
 

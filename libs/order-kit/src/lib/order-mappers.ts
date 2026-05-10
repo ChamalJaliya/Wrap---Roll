@@ -1,4 +1,10 @@
-import type { CashierOrderLineOption, CashierOrderSyncPayload, QueueOrder, WrapOrder } from '@wrap-roll/contracts';
+import type {
+  CashierOrderLineInput,
+  CashierOrderLineOption,
+  CashierOrderSyncPayload,
+  QueueOrder,
+  WrapOrder,
+} from '@wrap-roll/contracts';
 
 type QueueOrderItemRow = NonNullable<QueueOrder['items']>[number];
 type QueueOrderLike = QueueOrder & {
@@ -13,6 +19,18 @@ type LineModifiers = WrapOrder['items'][number]['modifiers'];
 const DEFAULT_MODIFIERS: LineModifiers = {
   optionGroups: [],
 };
+
+/** Accepts JSON numbers or numeric strings (queued/offline payloads). */
+export function normalizeOptionalPositiveMoney(raw: unknown): number | undefined {
+  if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) {
+    return Math.round(raw * 100) / 100;
+  }
+  if (typeof raw === 'string' && raw.trim().length > 0) {
+    const n = parseFloat(raw.trim().replace(',', '.'));
+    return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : undefined;
+  }
+  return undefined;
+}
 
 function normalizeOptionGroups(raw: unknown[]): LineModifiers['optionGroups'] {
   const out: LineModifiers['optionGroups'] = [];
@@ -80,6 +98,29 @@ function asDateString(value: unknown): string {
 function asNumber(value: unknown, fallback = 0): number {
   const n = Number(value ?? fallback);
   return Number.isFinite(n) ? n : fallback;
+}
+
+/** Accepts standard hyphenated UUIDs (Postgres `uuid` / Prisma `String` ids). */
+const HYPHENATED_UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function isLikelyMenuItemUuid(value: unknown): value is string {
+  return typeof value === 'string' && HYPHENATED_UUID_RE.test(value.trim());
+}
+
+function requireCashierLineMenuItemId(rawId: unknown, lineName: string): string {
+  const id = typeof rawId === 'string' ? rawId.trim() : '';
+  if (!id) {
+    throw new Error(
+      `Missing menu product id on line "${lineName}". Refresh the menu and re-add this item before syncing.`,
+    );
+  }
+  if (!HYPHENATED_UUID_RE.test(id)) {
+    throw new Error(
+      `Invalid menu product id on line "${lineName}". Refresh the menu and re-add this item before syncing.`,
+    );
+  }
+  return id;
 }
 
 function optionGroupsFromCashierSelections(
@@ -161,6 +202,14 @@ export function queueOrderToWrapOrder(dbOrder: QueueOrderLike): WrapOrder {
   };
 }
 
+/** Line items only — for `PATCH /orders/:id/line-items` amendment payloads. */
+export function cashierPayloadToWrapOrderItems(
+  body: CashierOrderSyncPayload,
+  createId: () => string,
+): WrapOrder['items'] {
+  return cashierPayloadToWrapOrder(body, createId).items;
+}
+
 export function cashierPayloadToWrapOrder(
   body: CashierOrderSyncPayload,
   createId: () => string,
@@ -182,12 +231,21 @@ export function cashierPayloadToWrapOrder(
       ? 'on_delivery'
       : rawPaymentCollection === 'on_pickup'
         ? 'on_pickup'
-        : 'immediate';
+        : rawPaymentCollection === 'at_collection'
+          ? 'at_collection'
+          : 'immediate';
   const paymentStatus = paymentCollection === 'immediate' ? 'completed' : 'pending';
   const items = Array.isArray(body.items) ? body.items : [];
-  const subtotal: number =
-    body.total ??
-    items.reduce((acc: number, item) => acc + item.unitPrice * (item.quantity ?? 1), 0);
+  const normalizedDiscountCode =
+    typeof body.discountCode === 'string' && body.discountCode.trim().length > 0
+      ? body.discountCode.trim().toUpperCase()
+      : undefined;
+  const manualDiscountAmount = normalizeOptionalPositiveMoney(body.manualDiscountAmount);
+  const lineSubtotal = items.reduce(
+    (acc: number, item) => acc + item.unitPrice * (item.quantity ?? 1),
+    0,
+  );
+  const subtotal = Math.round(lineSubtotal * 100) / 100;
   const tax = parseFloat((subtotal * 0.0).toFixed(2));
 
   return {
@@ -202,7 +260,7 @@ export function cashierPayloadToWrapOrder(
     },
     items: items.map((item) => ({
       lineItemId: createId(),
-      wrapId: item.id && item.id.length === 36 ? item.id : createId(),
+      wrapId: requireCashierLineMenuItemId(item.id, item.name ?? 'Unknown Item'),
       name: item.name ?? 'Unknown Item',
       availability: 'available',
       quantity: item.quantity ?? 1,
@@ -215,7 +273,8 @@ export function cashierPayloadToWrapOrder(
     })),
     pricing: {
       subtotal,
-      discountCode: undefined,
+      ...(normalizedDiscountCode ? { discountCode: normalizedDiscountCode } : {}),
+      ...(manualDiscountAmount !== undefined ? { manualDiscountAmount } : {}),
       discountAmount: 0,
       tax,
       deliveryFee: 0,
@@ -224,14 +283,21 @@ export function cashierPayloadToWrapOrder(
     payment: {
       method,
       status: paymentStatus,
-      transactionId:
-        paymentCollection === 'on_delivery'
-          ? `ON_DELIVERY_${Date.now()}`
-          : paymentCollection === 'on_pickup'
-            ? `ON_PICKUP_${Date.now()}`
-            : method === 'card'
-              ? `CARD_${Date.now()}`
-              : `CASH_${Date.now()}`,
+      transactionId: (() => {
+        if (paymentCollection === 'on_delivery') return `ON_DELIVERY_${Date.now()}`;
+        if (paymentCollection === 'on_pickup') return `ON_PICKUP_${Date.now()}`;
+        if (paymentCollection === 'at_collection') {
+          if (fulfillmentType === 'delivery') return `ON_DELIVERY_${Date.now()}`;
+          if (fulfillmentType === 'takeaway') return `ON_PICKUP_${Date.now()}`;
+          return `AT_COLLECTION_${Date.now()}`;
+        }
+        return method === 'card' ? `CARD_${Date.now()}` : `CASH_${Date.now()}`;
+      })(),
+      ...(typeof body.cashTenderAuditNote === 'string' && body.cashTenderAuditNote.trim().length > 0
+        ? {
+            posCashTenderNote: body.cashTenderAuditNote.trim().slice(0, 400),
+          }
+        : {}),
     },
     fulfillment: {
       type: fulfillmentType,
@@ -253,4 +319,36 @@ export function cashierPayloadToWrapOrder(
       priority: 'normal',
     },
   };
+}
+
+/** Hydrate POS cart lines from a queue/API order row for line-item amendments. */
+export function queueOrderLineToCashierLineInput(item: QueueOrderItemRow): CashierOrderLineInput {
+  const mod = parseModifiersJson(item.modifiersJson);
+  const selectedOptions: CashierOrderLineOption[] = mod.optionGroups.flatMap((g) =>
+    (g.options ?? []).map((o) => ({
+      groupName: String(g.groupName ?? g.name ?? 'Option'),
+      label: o.label,
+      priceAdjust: Number(o.priceAdjust ?? 0),
+    })),
+  );
+  const menuId =
+    item.menuItemId && isLikelyMenuItemUuid(item.menuItemId) ? item.menuItemId : item.id;
+  const qty = Math.max(1, asNumber(item.quantity, 1));
+  const lineTotal = asNumber(item.lineTotal, 0);
+  const storedUnit = asNumber(item.unitPrice, 0);
+  /** Prefer authoritative line total so cart matches kitchen/order (handles modifier pricing drift). */
+  const unitPrice =
+    lineTotal > 0 && qty > 0 ? Number((lineTotal / qty).toFixed(2)) : storedUnit;
+  return {
+    id: menuId,
+    name: item.name,
+    unitPrice,
+    quantity: item.quantity,
+    ...(selectedOptions.length > 0 ? { selectedOptions } : {}),
+    ...(mod.notes ? { notes: mod.notes } : {}),
+  };
+}
+
+export function queueOrderLinesToCashierInputs(items: QueueOrderItemRow[]): CashierOrderLineInput[] {
+  return items.map(queueOrderLineToCashierLineInput);
 }

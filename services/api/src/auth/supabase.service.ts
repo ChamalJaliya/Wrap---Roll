@@ -255,4 +255,24 @@ export class SupabaseService {
     if (!mapped) throw new Error('Updated user is not a staff role');
     return mapped;
   }
+
+  async getStaffUserById(userId: string): Promise<StaffAuthUserView | null> {
+    if (!this._supabase) return null;
+    const { data, error } = await this._supabase.auth.admin.getUserById(userId);
+    if (error || !data.user) return null;
+    return this.mapStaffUser(data.user);
+  }
+
+  /** Lookup staff users by email (Supabase Auth); linear scan — OK for infrequent supervisor PIN flows. */
+  async findStaffUserByEmail(email: string): Promise<StaffAuthUserView | null> {
+    if (!this._supabase) return null;
+    const normalized = email.trim().toLowerCase();
+    const { data, error } = await this._supabase.auth.admin.listUsers({
+      page: 1,
+      perPage: 1000,
+    });
+    if (error || !data.users?.length) return null;
+    const hit = data.users.find((u) => String(u.email ?? '').toLowerCase() === normalized);
+    return hit ? this.mapStaffUser(hit) : null;
+  }
 }

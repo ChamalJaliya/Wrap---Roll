@@ -15,10 +15,18 @@ import { CashierHandoffQr } from '@/components/CashierHandoffQr';
 import { OrderService } from '@/services/api';
 import { formatApiError } from '@/lib/api-error';
 import { buildCashierResolveOrderUrl } from '@wrap-roll/contracts';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const CASHIER_ORIGIN =
   (typeof process !== 'undefined' && process.env.EXPO_PUBLIC_CASHIER_APP_URL?.trim()) ||
   'http://localhost:3002';
+
+function maskCustomerEmail(email: string): string {
+  const e = email.trim();
+  const at = e.indexOf('@');
+  if (at <= 1) return 'your email';
+  return `${e[0]}***${e.slice(at)}`;
+}
 
 export default function OrderSuccessScreen() {
   const router = useRouter();
@@ -33,6 +41,8 @@ export default function OrderSuccessScreen() {
   const [fulfillmentType, setFulfillmentType] = useState('');
   const [total, setTotal] = useState<number | null>(null);
   const [copyHint, setCopyHint] = useState<string | null>(null);
+  const [receiptEmail, setReceiptEmail] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('');
 
   const orderId = String(params.id || '').trim();
   const phone = String(params.phone || '').trim();
@@ -46,6 +56,22 @@ export default function OrderSuccessScreen() {
   const showCounterHandoffQr = Boolean(orderId && staffHandoffUrl);
 
   useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const sid = (await AsyncStorage.getItem('last_order_id')) ?? '';
+      const em = (await AsyncStorage.getItem('last_order_email')) ?? '';
+      if (!cancelled && sid === orderId && em.includes('@')) {
+        setReceiptEmail(em.trim());
+      } else if (!cancelled) {
+        setReceiptEmail('');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [orderId]);
+
+  useEffect(() => {
     if (!orderId || !phone) return;
     let active = true;
 
@@ -56,6 +82,7 @@ export default function OrderSuccessScreen() {
         if (!active) return;
         setStatus(String(data.status || '').toUpperCase());
         setPaymentStatus(String(data.paymentStatus || '').toUpperCase());
+        setPaymentMethod(String(data.paymentMethod || '').toUpperCase());
         setFulfillmentType(String(data.fulfillmentType || '').toUpperCase());
         setTotal(Number(data.total) || null);
         setTrackError('');
@@ -74,6 +101,14 @@ export default function OrderSuccessScreen() {
       clearInterval(timer);
     };
   }, [orderId, phone]);
+
+  const paymentDone = paymentStatus === 'COMPLETED';
+  const receiptEmailLine =
+    receiptEmail && paymentDone
+      ? `Check your inbox for your receipt at ${maskCustomerEmail(receiptEmail)}.`
+      : receiptEmail
+        ? `We’ll email your receipt to ${maskCustomerEmail(receiptEmail)} when payment is confirmed.`
+        : '';
 
   const copyText = async (label: string, text: string) => {
     try {
@@ -121,8 +156,12 @@ export default function OrderSuccessScreen() {
 
             <Row label="Status" value={status} />
             <Row label="Payment" value={paymentStatus} />
+            {paymentMethod ? <Row label="Pay via" value={paymentMethod} /> : null}
             <Row label="Fulfillment" value={fulfillmentType || (loading ? '…' : '—')} />
             <Row label="Total" value={total != null ? `LKR ${total.toFixed(0)}` : '—'} />
+            {receiptEmailLine ? (
+              <Text style={styles.receiptHint}>{receiptEmailLine}</Text>
+            ) : null}
 
             {showCounterHandoffQr ? (
               <View style={styles.handoffCard}>
@@ -185,6 +224,12 @@ const styles = StyleSheet.create({
   row: { marginTop: 8 },
   rowLabel: { fontSize: 12, textTransform: 'uppercase', color: '#6b7280', fontWeight: '700' },
   rowValue: { fontSize: 16, color: '#111827', marginTop: 2 },
+  receiptHint: {
+    marginTop: 10,
+    fontSize: 13,
+    lineHeight: 18,
+    color: '#57534e',
+  },
   error: { color: '#b91c1c', marginBottom: 8 },
   trackWarn: { color: '#92400e', marginBottom: 8, fontSize: 13, lineHeight: 18 },
   handoffCard: {

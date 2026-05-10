@@ -77,6 +77,8 @@ export const WrapOrderSchema = z.object({
     customerId: z.string().uuid().optional(), // null for walk-in / guest / POS
     name:       z.string(),
     phone:      z.string().optional(),
+    /** Storefront sign-in / checkout — stored on Customer when creating/linking guest */
+    email:      z.string().max(320).optional(),
   }),
 
   // ── Line Items ─────────────────────────────────────────────────────────────
@@ -102,6 +104,18 @@ export const WrapOrderSchema = z.object({
     subtotal:       z.number().nonnegative(),                 // LKR
     discountCode:   z.string().optional(),
     discountAmount: z.number().nonnegative().default(0),      // LKR
+    /** POS only: extra discount (LKR); requires supervisor elevation on create (server-enforced). */
+    manualDiscountAmount: z.preprocess(
+      (val) => {
+        if (val === null || val === undefined || val === '') return undefined;
+        const n =
+          typeof val === 'number'
+            ? val
+            : parseFloat(String(val).trim().replace(',', '.'));
+        return Number.isFinite(n) ? n : undefined;
+      },
+      z.number().nonnegative().optional(),
+    ),
     tax:            z.number().nonnegative(),                 // LKR
     deliveryFee:    z.number().nonnegative().default(0),      // LKR
     total:          z.number().nonnegative(),                 // LKR
@@ -114,6 +128,8 @@ export const WrapOrderSchema = z.object({
     method:        z.enum(PAYMENT_METHODS),
     status:        z.enum(PAYMENT_STATUSES),
     transactionId: z.string().optional(),
+    /** POS Pay now / till audit — persisted on `cash_collected` payment event; amounts also surfaced on receipts when parsed. */
+    posCashTenderNote: z.string().max(400).optional(),
   }),
 
   // ── Fulfillment ────────────────────────────────────────────────────────────
@@ -138,3 +154,13 @@ export const WrapOrderSchema = z.object({
 
 export type WrapOrder    = z.infer<typeof WrapOrderSchema>;
 export type WrapOrderItem = WrapOrder['items'][number];
+
+/** POS / admin: replace all lines on an existing order (server recalculates totals). */
+export const ReplaceOrderLineItemsBodySchema = z.object({
+  items: WrapOrderSchema.pick({ items: true }).shape.items,
+  note: z.string().max(500).optional(),
+  /** Required for ADMIN only when overriding a policy block (e.g. paid + in kitchen). */
+  adminOverrideReason: z.string().max(500).optional(),
+});
+
+export type ReplaceOrderLineItemsBody = z.infer<typeof ReplaceOrderLineItemsBodySchema>;

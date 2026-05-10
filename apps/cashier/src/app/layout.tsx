@@ -1,4 +1,5 @@
 import '@wrap-roll/shared-ui/src/app.css';
+import './orders-scroll.css';
 import { DOMAIN_ACCENT_CLASS } from '@wrap-roll/shared-ui';
 import { DisableServiceWorker } from '../components/DisableServiceWorker';
 import { Toaster } from 'sonner';

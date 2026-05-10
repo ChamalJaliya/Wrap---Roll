@@ -1,6 +1,7 @@
 import {
   DEFAULT_PAYMENT_CONFIG,
   type NormalizedPaymentConfig,
+  type PosPaymentControlsConfig,
 } from '@wrap-roll/contracts';
 
 export type { NormalizedPaymentConfig };
@@ -17,6 +18,15 @@ export function normalizePaymentConfig(raw: unknown): NormalizedPaymentConfig {
   const provider =
     typeof obj.provider === 'string' ? obj.provider.toLowerCase().trim() : '';
 
+  let pos: PosPaymentControlsConfig | undefined;
+  if (obj.pos && typeof obj.pos === 'object') {
+    const p = obj.pos as Record<string, unknown>;
+    pos = {
+      requireSupervisorForCardCollection:
+        p.requireSupervisorForCardCollection === true,
+    };
+  }
+
   return {
     methods: {
       cash: methods?.cash === undefined ? true : Boolean(methods.cash),
@@ -27,6 +37,7 @@ export function normalizePaymentConfig(raw: unknown): NormalizedPaymentConfig {
       card: methods?.card === undefined ? false : Boolean(methods.card),
       online: methods?.online === undefined ? false : Boolean(methods.online),
     },
+    ...(pos ? { pos } : {}),
   };
 }
 

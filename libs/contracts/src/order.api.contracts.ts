@@ -45,6 +45,13 @@ export type QueueOrderActions = {
   canMarkDelivered: boolean;
   canVoid: boolean;
   canRefund: boolean;
+  /** Replace cart lines on the order (policy-gated on payment + fulfillment). */
+  canReplaceLineItems: boolean;
+  /** Human-readable reason when line replacement is blocked for this actor. */
+  lineReplaceBlockedMessage?: string | null;
+  /** PATCH support/customer/delivery fields (stricter than lines for delivery-ready paid). */
+  canEditSupportDetails: boolean;
+  supportEditBlockedMessage?: string | null;
 };
 
 export type QueueOrder = {
@@ -113,6 +120,8 @@ export type QueueOrder = {
 
 export type SupportOrderItem = {
   id: string;
+  /** Menu catalog id — required for POS amend cart hydration when queue row is missing. */
+  menuItemId?: string;
   name: string;
   quantity: number;
   unitPrice?: ApiNumeric;
@@ -138,6 +147,8 @@ export type SupportOrderDetails = {
   placedAt: ApiDateTime;
   updatedAt?: ApiDateTime;
   subtotal?: ApiNumeric;
+  /** Coupon code when present; manual-only discounts may have no code but still have discountAmount. */
+  discountCode?: string | null;
   discountAmount?: ApiNumeric;
   tax?: ApiNumeric;
   deliveryFee?: ApiNumeric;
@@ -148,6 +159,9 @@ export type SupportOrderDetails = {
   kitchenName?: string | null;
   /** POS schedule override (outside public hours/cutoff; not used for delivery). */
   staffScheduleOverride?: boolean;
+  /** From latest `cash_collected` payment event note with till audit (LKR). Omitted when absent. */
+  cashReceivedLkr?: ApiNumeric | null;
+  changeReturnedLkr?: ApiNumeric | null;
   items: SupportOrderItem[];
 };
 
@@ -261,7 +275,12 @@ export type CashierOrderLineInput = {
 
 export type CashierPaymentMethod = 'CASH' | 'CARD';
 export type CashierOrderSource = 'cashier_pos' | 'cashier_pos_offline';
-export type CashierPaymentCollection = 'immediate' | 'on_delivery' | 'on_pickup';
+export type CashierPaymentCollection =
+  | 'immediate'
+  | 'on_delivery'
+  | 'on_pickup'
+  /** Counter pay-later / dine-in settle at collection — order-kit uses AT_COLLECTION_ tx prefix for dine-in. */
+  | 'at_collection';
 export type DeliveryPaymentCollectionMethod = 'cash' | 'card';
 
 export function formatPaymentCollectionLabel(
@@ -273,11 +292,47 @@ export function formatPaymentCollectionLabel(
       return 'Pay on delivery';
     case 'on_pickup':
       return 'Pay on pickup';
+    case 'at_collection':
+      return 'Pay at collection';
     case 'immediate':
       return 'Immediate';
     default:
       return String(paymentCollection).replace(/_/g, ' ');
   }
+}
+
+/**
+ * Human-readable payment timing for queue cards and ops UIs.
+ * Uses fulfillment so counter takeaway “pay later” reads as handoff, not only “pickup”.
+ */
+/** Avoid showing raw DB value `completed` — reads like the whole order is finished (kitchen/delivery). */
+export function formatPaymentStatusDisplayLabel(
+  paymentStatus: string | null | undefined,
+): string {
+  const s = String(paymentStatus ?? '').toLowerCase();
+  switch (s) {
+    case 'completed':
+      return 'Paid';
+    case 'pending':
+      return 'Payment pending';
+    case 'failed':
+      return 'Payment failed';
+    case 'refunded':
+      return 'Refunded';
+    default:
+      return paymentStatus ? String(paymentStatus) : '—';
+  }
+}
+
+export function formatPaymentCollectionDisplayLabel(
+  paymentCollection: CashierPaymentCollection | string | null | undefined,
+  fulfillmentType?: 'takeaway' | 'dine_in' | 'delivery' | string | null,
+): string {
+  const raw = String(paymentCollection ?? 'immediate').toLowerCase();
+  const ft = String(fulfillmentType ?? '').toLowerCase();
+  if (raw === 'on_pickup' && ft === 'takeaway') return 'Pay at handoff';
+  if (raw === 'at_collection' && ft === 'dine_in') return 'Pay at table or exit';
+  return formatPaymentCollectionLabel(paymentCollection);
 }
 
 export type MarkPaymentReceivedPayload = {
@@ -299,5 +354,19 @@ export type CashierOrderSyncPayload = {
   deliveryLatitude?: number;
   deliveryLongitude?: number;
   orderSource?: CashierOrderSource;
+  /** Admin-defined coupon code; amount is validated only on the server at order creation. */
+  discountCode?: string;
+  /** Extra LKR discount after supervisor unlock; capped server-side with coupon total ≤ 50% subtotal. */
+  manualDiscountAmount?: number;
+  /**
+   * Short-lived token from `POST /supervisor/challenge` — sent only as `x-supervisor-elevation` by the cashier
+   * API route, never forwarded in the Nest JSON body.
+   */
+  supervisorElevationToken?: string;
+  /**
+   * Counter Pay now (cash): till audit line appended to placement `cash_collected` event.
+   * Built client-side e.g. `appendCashTenderAuditToNote('POS Pay now cash', detail)`.
+   */
+  cashTenderAuditNote?: string;
   createdAt: string;
 };

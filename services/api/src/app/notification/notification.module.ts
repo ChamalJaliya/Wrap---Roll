@@ -3,6 +3,7 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { NotificationService } from './notification.service';
 import { NotificationApiService } from './notification-api.service';
 import { NotificationController } from './notification.controller';
+import { InvoiceEmailService } from './invoice-email.service';
 import { LogSmsProvider, SupabaseEdgeSmsProvider } from './providers/sms.provider';
 
 @Module({
@@ -10,12 +11,13 @@ import { LogSmsProvider, SupabaseEdgeSmsProvider } from './providers/sms.provide
   controllers: [NotificationController],
   providers: [
     NotificationService,
+    InvoiceEmailService,
     NotificationApiService,
     {
       provide: 'SMS_PROVIDER',
       useClass: process.env.NODE_ENV === 'production' ? SupabaseEdgeSmsProvider : LogSmsProvider,
     },
   ],
-  exports: [NotificationService, NotificationApiService],
+  exports: [NotificationService, NotificationApiService, InvoiceEmailService],
 })
 export class NotificationModule {}

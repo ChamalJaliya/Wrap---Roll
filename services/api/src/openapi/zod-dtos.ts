@@ -2,6 +2,7 @@ import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';
 import {
   WrapOrderSchema,
+  ReplaceOrderLineItemsBodySchema,
   CustomerAddressSchema,
   SavedPaymentTokenSchema,
   PayHereWebhookSchema,
@@ -16,6 +17,8 @@ import {
   CreateStockAdjustmentInputSchema,
   CreateOverheadCostEntryInputSchema,
 } from '@wrap-roll/contracts';
+
+export const ReplaceOrderLineItemsBodyDto = createZodDto(ReplaceOrderLineItemsBodySchema);
 
 /** Matches `OrderService.updateOrderSupportDetails` body. */
 export const SupportOrderUpdateSchema = z.object({

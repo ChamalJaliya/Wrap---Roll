@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { Check, Copy } from 'lucide-react';
 import {
-  formatPaymentCollectionLabel,
+  formatPaymentCollectionDisplayLabel,
+  formatPersistedDiscountCaption,
   type OpsActivityEventRow,
   type QueueOrder,
   type SupportOrderDetails,
@@ -129,8 +130,9 @@ export function OrderDetailsModal({
 
   const resolvedStatus = toTitleWords(details?.status ?? order.status ?? '-');
   const resolvedFulfillment = toTitleWords(details?.fulfillmentType ?? order.fulfillmentType ?? '-');
-  const resolvedPaymentCollection = formatPaymentCollectionLabel(
+  const resolvedPaymentCollection = formatPaymentCollectionDisplayLabel(
     details?.paymentCollection ?? order.paymentCollection ?? 'immediate',
+    details?.fulfillmentType ?? order.fulfillmentType,
   );
   const staffScheduleOverride = Boolean(
     details?.staffScheduleOverride ?? orderAny.staffScheduleOverride,
@@ -153,6 +155,10 @@ export function OrderDetailsModal({
   const resolvedCashierName =
     (typeof detailsAny.cashierName === 'string' && detailsAny.cashierName.trim()) || '-';
   const checkoutAborted = hasCheckoutAbortedEvent(paymentEvents);
+  const discountCaption = formatPersistedDiscountCaption({
+    discountCode: details?.discountCode ?? order.discountCode ?? null,
+    discountAmount: detailsAny.discountAmount ?? orderAny.discountAmount ?? 0,
+  });
 
   const copyText = async (key: string, value: string) => {
     try {
@@ -324,7 +330,13 @@ export function OrderDetailsModal({
                   <p><strong>Payment status:</strong> {details?.paymentStatus ?? order.paymentStatus ?? '-'}</p>
                   <p><strong>Total:</strong> {fmtMoney(details?.total ?? order.total)}</p>
                   <p><strong>Subtotal:</strong> {fmtMoney((details as any)?.subtotal ?? order.subtotal ?? 0)}</p>
-                  <p><strong>Discount:</strong> {fmtMoney((details as any)?.discountAmount ?? order.discountAmount ?? 0)}</p>
+                  <p>
+                    <strong>Discount:</strong>{' '}
+                    {fmtMoney((details as any)?.discountAmount ?? order.discountAmount ?? 0)}
+                    {discountCaption ? (
+                      <span className="text-neutral-500"> ({discountCaption})</span>
+                    ) : null}
+                  </p>
                   <p><strong>Tax:</strong> {fmtMoney((details as any)?.tax ?? order.tax ?? 0)}</p>
                   <p><strong>Delivery fee:</strong> {fmtMoney((details as any)?.deliveryFee ?? order.deliveryFee ?? 0)}</p>
                 </div>

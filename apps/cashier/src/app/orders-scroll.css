@@ -1,0 +1,41 @@
+/**
+ * POS scroll surfaces: thicker thumb (touch-friendly), primary-tinted, soft track.
+ * Use `.orders-scroll-column` on order lists/side panels, `.pos-touch-scroll` on other overflow areas.
+ */
+
+.orders-scroll-column,
+.pos-touch-scroll {
+  scrollbar-gutter: stable;
+  scrollbar-width: auto;
+  scrollbar-color: hsl(var(--primary) / 0.42) hsl(var(--muted) / 0.65);
+}
+
+.orders-scroll-column::-webkit-scrollbar,
+.pos-touch-scroll::-webkit-scrollbar {
+  width: 11px;
+}
+
+.orders-scroll-column::-webkit-scrollbar-track,
+.pos-touch-scroll::-webkit-scrollbar-track {
+  margin-block: 6px;
+  border-radius: 9999px;
+  background: hsl(var(--muted) / 0.55);
+}
+
+.orders-scroll-column::-webkit-scrollbar-thumb,
+.pos-touch-scroll::-webkit-scrollbar-thumb {
+  border-radius: 9999px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+  background-color: hsl(var(--primary) / 0.38);
+}
+
+.orders-scroll-column:hover::-webkit-scrollbar-thumb,
+.pos-touch-scroll:hover::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--primary) / 0.52);
+}
+
+.orders-scroll-column::-webkit-scrollbar-thumb:active,
+.pos-touch-scroll::-webkit-scrollbar-thumb:active {
+  background-color: hsl(var(--primary) / 0.65);
+}

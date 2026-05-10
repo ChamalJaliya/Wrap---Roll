@@ -24,19 +24,71 @@ export const initSyncDB = async (): Promise<IDBPDatabase> => {
   });
 };
 
-export const queueOrder = async (orderData: CashierOrderSyncPayload) => {
+function truncateForLog(s: string, max = 400): string {
+  return s.length > max ? `${s.slice(0, max)}…` : s;
+}
+
+function parseSyncErrorMessage(raw: string): string {
+  try {
+    const o = JSON.parse(raw) as { message?: unknown };
+    const m = o?.message;
+    if (typeof m === 'string') return m;
+    if (Array.isArray(m)) return m.map(String).join(' ');
+  } catch {
+    /* keep raw */
+  }
+  return raw.length > 600 ? `${raw.slice(0, 600)}…` : raw;
+}
+
+/** 400s that will never succeed on retry with the same payload — drop the queue row and keep syncing others. */
+function isUnrecoverableCashierSyncFailure(status: number, message: string): boolean {
+  const lower = message.toLowerCase();
+  if (status === 403) {
+    return (
+      lower.includes('supervisor') ||
+      lower.includes('elevation') ||
+      lower.includes('privileged') ||
+      lower.includes('step-up')
+    );
+  }
+  if (status !== 400) return false;
+  return (
+    lower.includes('no longer available') ||
+    lower.includes('refresh menu') ||
+    lower.includes('menu product id') ||
+    lower.includes('invalid order payload') ||
+    lower.includes('invalid cashier order') ||
+    lower.includes('zod') ||
+    lower.includes('unsupported order source') ||
+    lower.includes('coupon error') ||
+    lower.includes('supervisor') ||
+    lower.includes('elevation') ||
+    lower.includes('privileged')
+  );
+}
+
+/** Persists full POS payload (including `paymentCollection`: immediate | on_pickup | on_delivery | at_collection) and POSTs it to `/api/orders` unchanged when online. */
+export const queueOrder = async (
+  orderData: CashierOrderSyncPayload,
+  /** When set (e.g. current checkout), must match `pendingPlacementQueueIds` for UI finalize. */
+  fixedId?: string,
+): Promise<string> => {
   const db = await initSyncDB();
   const order: OfflineOrder = {
-    id: `off_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    id:
+      fixedId?.trim() ||
+      `off_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     orderData,
     timestamp: Date.now(),
   };
   await db.put(STORE_NAME, order);
-  console.log('Order queued in IndexedDB:', order.id);
   if (typeof window !== 'undefined') {
     window.dispatchEvent(
       new CustomEvent('cashier-order-queued', {
-        detail: { localId: order.id },
+        detail: {
+          localId: order.id,
+          offline: typeof navigator !== 'undefined' && !navigator.onLine,
+        },
       }),
     );
   }
@@ -45,11 +97,11 @@ export const queueOrder = async (orderData: CashierOrderSyncPayload) => {
   if (typeof navigator !== 'undefined' && navigator.onLine) {
     await syncOrders();
   }
+  return order.id;
 };
 
 async function runSyncOnce() {
   if (typeof navigator !== 'undefined' && !navigator.onLine) {
-    console.log('Sync postponed: Offline');
     return;
   }
 
@@ -57,11 +109,8 @@ async function runSyncOnce() {
   const queuedOrders = await db.getAll(STORE_NAME);
 
   if (queuedOrders.length === 0) {
-    console.log('Sync: No orders to sync');
     return;
   }
-
-  console.log(`Sync: Processing ${queuedOrders.length} orders...`);
 
   for (const order of queuedOrders) {
     try {
@@ -75,12 +124,18 @@ async function runSyncOnce() {
       });
 
       if (response.ok) {
-        console.log(`Sync: Order ${order.id} synced successfully`);
+        const responseText = await response.text();
+        let orderBody: unknown = null;
+        try {
+          orderBody = responseText ? JSON.parse(responseText) : null;
+        } catch {
+          orderBody = null;
+        }
         await db.delete(STORE_NAME, order.id);
         if (typeof window !== 'undefined') {
           window.dispatchEvent(
             new CustomEvent('cashier-order-synced', {
-              detail: { localId: order.id },
+              detail: { localId: order.id, order: orderBody },
             }),
           );
         }
@@ -89,37 +144,46 @@ async function runSyncOnce() {
           duplicateOf?: string;
           message?: string;
         } | null;
-        console.warn(`Sync: Duplicate order rejected (${order.id}):`, body);
+        console.warn(`Sync: Duplicate order rejected (${order.id})`);
         await db.delete(STORE_NAME, order.id);
         if (typeof window !== 'undefined') {
           window.dispatchEvent(
             new CustomEvent('cashier-order-duplicate', {
-              detail: { duplicateOf: body?.duplicateOf },
+              detail: { duplicateOf: body?.duplicateOf, localId: order.id },
             }),
           );
         }
       } else {
         const raw = await response.text();
-        console.error(`Sync: Failed to sync order ${order.id}:`, raw);
+        const reason = parseSyncErrorMessage(raw);
+        if (
+          typeof window !== 'undefined' &&
+          isUnrecoverableCashierSyncFailure(response.status, reason)
+        ) {
+          console.warn(`Sync: Dropping unrecoverable queued order ${order.id}:`, truncateForLog(reason));
+          await db.delete(STORE_NAME, order.id);
+          window.dispatchEvent(
+            new CustomEvent('cashier-order-sync-dropped', {
+              detail: { localId: order.id, status: response.status, reason },
+            }),
+          );
+          continue;
+        }
+        console.error(`Sync: Failed to sync order ${order.id}:`, truncateForLog(raw));
         if (typeof window !== 'undefined') {
-          let reason = raw;
-          try {
-            const body = JSON.parse(raw) as { message?: string; detail?: string };
-            reason = String(body?.message ?? body?.detail ?? raw);
-          } catch {
-            /* keep raw text */
-          }
           window.dispatchEvent(
             new CustomEvent('cashier-order-sync-failed', {
               detail: { localId: order.id, status: response.status, reason },
             }),
           );
         }
-        // We stop sync for now on first failure to prevent flood or ordering issues
         break;
       }
     } catch (error) {
-      console.error(`Sync: Network error syncing order ${order.id}:`, error);
+      console.error(
+        `Sync: Network error syncing order ${order.id}:`,
+        error instanceof Error ? error.message : error,
+      );
       if (typeof window !== 'undefined') {
         window.dispatchEvent(
           new CustomEvent('cashier-order-sync-failed', {

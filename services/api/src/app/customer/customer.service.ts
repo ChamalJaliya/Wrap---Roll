@@ -178,39 +178,118 @@ export class CustomerService {
 
   /**
    * Guest / POS checkout: one row per phone; anonymous orders use null phone (many rows allowed).
+   * Optional `email` is merged when safe (unique); never overwrites an existing different email.
    */
-  async findOrCreateGuestByPhone(name: string, phone?: string | null) {
+  async findOrCreateGuestByPhone(
+    name: string,
+    phone?: string | null,
+    email?: string | null,
+  ) {
     const phoneNorm = this.normalizePhone(phone);
+    const emailNorm = this.normalizeEmail(email);
+
     if (!phoneNorm) {
-      return this.prisma.customer.create({
-        data: { name: name || 'Guest' },
-      });
+      if (emailNorm) {
+        const byEmail = await this.prisma.customer.findUnique({
+          where: { email: emailNorm },
+        });
+        if (byEmail) {
+          if (name && byEmail.name !== name) {
+            return this.prisma.customer.update({
+              where: { id: byEmail.id },
+              data: { name },
+            });
+          }
+          return byEmail;
+        }
+      }
+      try {
+        return await this.prisma.customer.create({
+          data: {
+            name: name || 'Guest',
+            ...(emailNorm ? { email: emailNorm } : {}),
+          },
+        });
+      } catch (e: unknown) {
+        const code = (e as { code?: string })?.code;
+        if (code === 'P2002' && emailNorm) {
+          const retry = await this.prisma.customer.findUnique({
+            where: { email: emailNorm },
+          });
+          if (retry) return retry;
+        }
+        throw e;
+      }
     }
 
     const existing = await this.prisma.customer.findUnique({
       where: { phone: phoneNorm },
     });
     if (existing) {
-      if (name && existing.name !== name) {
-        return this.prisma.customer.update({
-          where: { id: existing.id },
-          data: { name },
+      const data: { name?: string; email?: string } = {};
+      if (name && existing.name !== name) data.name = name;
+      if (emailNorm && !existing.email) {
+        const clash = await this.prisma.customer.findFirst({
+          where: { email: emailNorm, NOT: { id: existing.id } },
+          select: { id: true },
         });
+        if (!clash) data.email = emailNorm;
+      }
+      if (Object.keys(data).length) {
+        try {
+          return await this.prisma.customer.update({
+            where: { id: existing.id },
+            data,
+          });
+        } catch (e: unknown) {
+          const code = (e as { code?: string })?.code;
+          if (code === 'P2002') return existing;
+          throw e;
+        }
       }
       return existing;
     }
 
-    return this.prisma.customer.create({
-      data: {
-        name: name || 'Guest',
-        phone: phoneNorm,
-      },
-    });
+    if (emailNorm) {
+      const byEmail = await this.prisma.customer.findUnique({
+        where: { email: emailNorm },
+      });
+      if (byEmail) {
+        return this.prisma.customer.update({
+          where: { id: byEmail.id },
+          data: {
+            name: name || byEmail.name || 'Guest',
+            phone: phoneNorm,
+          },
+        });
+      }
+    }
+
+    try {
+      return await this.prisma.customer.create({
+        data: {
+          name: name || 'Guest',
+          phone: phoneNorm,
+          ...(emailNorm ? { email: emailNorm } : {}),
+        },
+      });
+    } catch (e: unknown) {
+      const code = (e as { code?: string })?.code;
+      if (code === 'P2002' && emailNorm) {
+        return this.prisma.customer.create({
+          data: {
+            name: name || 'Guest',
+            phone: phoneNorm,
+          },
+        });
+      }
+      throw e;
+    }
   }
 
   /** @deprecated Prefer findOrCreateGuestByPhone for checkout */
   async findOrCreateCustomer(phone?: string, name?: string) {
-    return this.findOrCreateGuestByPhone(name || 'Guest', phone);
+    return this.findOrCreateGuestByPhone(name || 'Guest', phone, undefined);
   }
 
   async getCustomerHistory(id: string) {

@@ -738,6 +738,54 @@ export default function AnalyticsDashboard() {
                 </span>
               </div>
             )}
+
+            <div className="col-span-2 sm:col-span-4 mt-4 border-t pt-4">
+              <p className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                POS card collections (standalone terminal)
+              </p>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                <div className="rounded-xl border bg-background p-3" style={{ borderLeftWidth: 3, borderLeftColor: '#6366f1' }}>
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Recorded events</p>
+                  <p className="mt-1 text-sm font-black">{reconciliation.card_collection?.count ?? 0}</p>
+                </div>
+                <div className="rounded-xl border bg-background p-3" style={{ borderLeftWidth: 3, borderLeftColor: '#8b5cf6' }}>
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Total (order totals)</p>
+                  <p className="mt-1 text-sm font-black">{fmtCurrency(reconciliation.card_collection?.total_lkr ?? 0)}</p>
+                </div>
+              </div>
+              {(reconciliation.card_collection?.events?.length ?? 0) > 0 ? (
+                <div className="mt-3 max-h-56 overflow-auto rounded-xl border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-xs">Time</TableHead>
+                        <TableHead className="text-xs">Order</TableHead>
+                        <TableHead className="text-xs text-right">Amount</TableHead>
+                        <TableHead className="text-xs">Actor</TableHead>
+                        <TableHead className="text-xs">Note</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(reconciliation.card_collection?.events ?? []).map((ev) => (
+                        <TableRow key={`${ev.order_id}-${ev.recorded_at}`}>
+                          <TableCell className="font-mono text-[11px] text-muted-foreground">
+                            {new Date(ev.recorded_at).toLocaleTimeString()}
+                          </TableCell>
+                          <TableCell className="font-mono text-[11px]">{ev.order_id.slice(0, 8)}…</TableCell>
+                          <TableCell className="text-right font-mono text-xs">{fmtCurrency(ev.amount_lkr)}</TableCell>
+                          <TableCell className="text-[11px]">{ev.actor_role ?? '—'}</TableCell>
+                          <TableCell className="max-w-[180px] truncate text-[11px] text-muted-foreground" title={ev.note ?? ''}>
+                            {ev.note ?? '—'}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <p className="mt-2 text-xs text-muted-foreground">No card collection events for this date.</p>
+              )}
+            </div>
           </div>
         )}
       </DataPanel>

@@ -24,6 +24,13 @@ import {
   clientPageShellClass,
 } from '@/lib/client-page-shell';
 
+function maskCustomerEmail(email: string): string {
+  const e = email.trim();
+  const at = e.indexOf('@');
+  if (at <= 1) return 'your email';
+  return `${e[0]}***${e.slice(at)}`;
+}
+
 function OrderTracking() {
   const locale = useLocale();
   const router = useRouter();
@@ -42,6 +49,18 @@ function OrderTracking() {
   const [deliveryFee, setDeliveryFee] = useState<number | null>(null);
   const [deliveryGeoSource, setDeliveryGeoSource] = useState<string>('');
   const [copyHint, setCopyHint] = useState<string | null>(null);
+  const [receiptEmail, setReceiptEmail] = useState('');
+
+  useEffect(() => {
+    if (!orderId || typeof window === 'undefined') return;
+    const sid = localStorage.getItem('last_order_id');
+    const em = localStorage.getItem('last_order_email');
+    if (sid === orderId && em && em.includes('@')) {
+      setReceiptEmail(em.trim());
+    } else {
+      setReceiptEmail('');
+    }
+  }, [orderId]);
 
   useEffect(() => {
     if (!orderId) return;
@@ -92,6 +111,13 @@ function OrderTracking() {
   });
   const paymentCollectionLabel = getPaymentCollectionLabel(paymentCollection, isDeferredCollection);
   const fulfillmentLabel = getFulfillmentLabel(normalizedFulfillmentType);
+  const paymentDone = paymentStatus.toLowerCase() === 'completed';
+  const receiptEmailLine =
+    receiptEmail && paymentDone
+      ? `Check your inbox (and spam) for your receipt at ${maskCustomerEmail(receiptEmail)}.`
+      : receiptEmail
+        ? `We’ll email your receipt to ${maskCustomerEmail(receiptEmail)} when payment is confirmed.`
+        : '';
   const statusFlow = buildStatusFlow({
     fulfillmentType: normalizedFulfillmentType,
     isDeferredCollection,
@@ -198,6 +224,9 @@ function OrderTracking() {
             <p className="mt-1 text-xs font-medium text-neutral-600">
               Fulfillment: {fulfillmentLabel}
             </p>
+            {receiptEmailLine ? (
+              <p className="mt-2 text-xs leading-relaxed text-neutral-600">{receiptEmailLine}</p>
+            ) : null}
             {completedTimeLabel ? (
               <p className="mt-1 text-xs text-neutral-500">
                 Completed at: {completedTimeLabel}

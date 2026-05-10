@@ -121,6 +121,24 @@ Support lookup — search orders and fetch detailed support view.
 
 ---
 
+### `PATCH /api/orders/:id/support`
+Update customer / fulfillment support fields (name, phone, table, delivery address, scheduled time). Policy may block edits for some delivery-ready paid orders for cashiers; **ADMIN** is not blocked.
+
+| **Auth** | `ADMIN`, `CASHIER` |
+| **Body** | `{ customerName?, customerPhone?, tableNumber?, deliveryAddress?, estimatedReadyTime?, note? }` |
+
+---
+
+### `PATCH /api/orders/:id/line-items`
+Replace **all** line items on an existing order. Server recomputes **subtotal**, **tax** (VAT from settings), reapplies **coupon** if still valid, keeps **delivery fee**, updates **total**. Emits payment/event + ops activity + outbox `order.lines_replaced`.
+
+| **Auth** | `ADMIN`, `CASHIER` |
+| **Body** | Canonical wrap lines: `{ items: WrapOrderItem[], note?: string, adminOverrideReason?: string }` |
+| **Policy (summary)** | **Cashier**: edit while payment is **pending**, or paid but status still **`placed`** / **`paid`**. Not allowed once paid and past that (e.g. **in_kitchen**, **ready**, **in_transit**), or **paid delivery** in **ready**. **ADMIN**: may override blocked states with **`adminOverrideReason`** (minimum 3 characters). |
+| **Cashier UI** | **Orders** tab → select order → **Amend lines in POS** → **POS** tab → **Save line changes**. |
+
+---
+
 ### `PATCH /api/orders/:id/status`
 Advance order status via the state machine. Invalid transitions return `400`. ADMIN-only for voiding in-kitchen orders.
 
@@ -159,7 +177,7 @@ Assign a courier to a delivery order.
 ---
 
 ### `GET /api/orders/reconciliation/summary`
-Daily payment reconciliation summary (cash vs. online).
+Daily payment reconciliation summary (cash vs. online). Pending **pay-at-collection** orders are grouped under `byMethod.pay_at_collection` (not under `cash`), until payment is collected.
 
 | **Auth** | `ADMIN`, `CASHIER` |
 | **Query** | `date` (ISO date string) |

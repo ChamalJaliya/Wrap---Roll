@@ -45,6 +45,7 @@ import {
   SettingsApiService,
 } from '@/services/api';
 import { useMobileCartStore } from '@/store/useMobileCartStore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type Fulfillment = 'TAKEAWAY' | 'DINE_IN' | 'DELIVERY';
 type OrderFor = 'SELF' | 'OTHER';
@@ -92,6 +93,8 @@ export default function CheckoutScreen() {
 
   const [selfName, setSelfName] = useState('');
   const [selfPhone, setSelfPhone] = useState('');
+  /** Signed-in profile email — persisted on Customer for invoice emails */
+  const [sessionEmail, setSessionEmail] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
 
@@ -132,8 +135,10 @@ export default function CheckoutScreen() {
 
         const baseName = String(customer?.name ?? '');
         const basePhone = String(customer?.phone ?? '');
+        const baseEmail = String(customer?.email ?? '').trim();
         setSelfName(baseName);
         setSelfPhone(basePhone);
+        setSessionEmail(baseEmail);
         setCustomerName(baseName);
         setCustomerPhone(basePhone);
 
@@ -446,6 +451,7 @@ export default function CheckoutScreen() {
         fulfillmentType: fulfillment,
         customerName: receiverName,
         customerPhone: receiverPhone,
+        ...(sessionEmail.includes('@') ? { customerEmail: sessionEmail } : {}),
         paymentMethod,
         ...(appliedCoupon?.code ? { discountCode: appliedCoupon.code } : {}),
         deliveryAddress: fulfillment === 'DELIVERY' ? finalDeliveryAddress : undefined,
@@ -471,6 +477,8 @@ export default function CheckoutScreen() {
       if (!orderId) {
         throw new Error('Order created but order ID not returned.');
       }
+      await AsyncStorage.setItem('last_order_id', orderId);
+      await AsyncStorage.setItem('last_order_email', sessionEmail.trim());
       clearCart();
       // Match web: success page shows cashier QR + thank-you; user can open Track from there if needed.
       router.push(

@@ -2,12 +2,26 @@ import { Injectable, Logger } from '@nestjs/common';
 import type { OrderItem, Order } from '@prisma/client';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { EscPos } = require('escpos-xml');
-import { getOrderItemModifierDisplayLines } from '@wrap-roll/order-kit';
+import { formatPaymentStatusDisplayLabel } from '@wrap-roll/contracts';
+import {
+  getOrderItemModifierDisplayLines,
+  parseCashTenderFromAuditNote,
+  type ParsedCashTenderAudit,
+} from '@wrap-roll/order-kit';
 import { PrismaService } from '../prisma/prisma.service';
+import { resolveReceiptLetterhead } from '../../common/receipt-letterhead';
 import { CASHIER_RECEIPT_TEMPLATE, KITCHEN_TICKET_TEMPLATE } from './print.templates';
 import { PRINT_JOB, type PrintJobName } from './print.constants';
 
 type OrderWithItems = Order & { items: OrderItem[] };
+
+/** ESC/POS XML template expects escaped &, &lt;, &gt; in dynamic text */
+function escPosXmlText(s: string): string {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
 
 @Injectable()
 export class PrintService {
@@ -40,7 +54,7 @@ export class PrintService {
 
     if (jobName === PRINT_JOB.cashierReceipt) {
       try {
-        const base64 = this.buildCashierReceiptFromRow(order);
+        const base64 = await this.buildCashierReceiptFromRow(order);
         this.cashierReceipts.set(orderId, base64);
       } catch (error: unknown) {
         await this.logAsyncFailure({
@@ -94,7 +108,7 @@ export class PrintService {
     });
     if (!order) return null;
     try {
-      return this.buildCashierReceiptFromRow(order);
+      return await this.buildCashierReceiptFromRow(order);
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : String(error);
       this.logger.error(`Receipt regeneration failed for ${orderId}: ${msg}`);
@@ -102,8 +116,22 @@ export class PrintService {
     }
   }
 
-  private buildCashierReceiptFromRow(order: OrderWithItems): string {
-    const data = this.orderToReceiptTemplateData(order);
+  private async buildCashierReceiptFromRow(order: OrderWithItems): Promise<string> {
+    const events = await this.prisma.paymentEvent.findMany({
+      where: { orderId: order.id },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+    let cashTender: ParsedCashTenderAudit | null = null;
+    for (const e of events) {
+      if (String(e.eventType) !== 'cash_collected') continue;
+      const parsed = parseCashTenderFromAuditNote(e.note);
+      if (parsed) {
+        cashTender = parsed;
+        break;
+      }
+    }
+    const data = await this.orderToReceiptTemplateData(order, cashTender);
     const bufferArray = EscPos.getBufferFromTemplate(CASHIER_RECEIPT_TEMPLATE, data);
     const finalPayload = Buffer.concat([
       Buffer.from(bufferArray),
@@ -162,10 +190,50 @@ export class PrintService {
     this.logger.error(`Print handler failed for ${args.orderId}: ${args.message}`);
   }
 
-  private orderToReceiptTemplateData(order: OrderWithItems) {
+  private formatPaymentMethodCustomer(order: OrderWithItems): string {
+    const m = String(order.paymentMethod ?? '').toLowerCase();
+    if (m === 'cash') return 'Cash';
+    if (m === 'card') return 'Card';
+    return String(order.paymentMethod ?? '—').replace(/_/g, ' ');
+  }
+
+  private formatFulfillmentCustomer(order: OrderWithItems): string {
+    const ft = String(order.fulfillmentType ?? '').toLowerCase();
+    if (ft === 'takeaway') return 'Takeaway';
+    if (ft === 'dine_in') {
+      const t = order.tableNumber?.trim();
+      return t ? `Dine in · Table ${t}` : 'Dine in';
+    }
+    if (ft === 'delivery') return 'Delivery';
+    return String(order.fulfillmentType ?? '').replace(/_/g, ' ') || '—';
+  }
+
+  private async orderToReceiptTemplateData(
+    order: OrderWithItems,
+    cashTender: ParsedCashTenderAudit | null,
+  ) {
+    const settings = await this.prisma.businessSettings.findUnique({
+      where: { id: 'singleton' },
+      select: {
+        businessName: true,
+        contactPhone: true,
+        addressLine1: true,
+        addressLine2: true,
+        contactEmail: true,
+      },
+    });
+    const lh = resolveReceiptLetterhead(settings);
     const placedAt = new Date(order.placedAt).toLocaleString('en-US', { hour12: true });
     const shortOrderId = order.id.substring(order.id.length - 4).toUpperCase();
+    const subtotal = Number(order.subtotal);
+    const discountAmount = Number(order.discountAmount);
+    const tax = Number(order.tax);
+    const deliveryFee = Number(order.deliveryFee ?? 0);
     return {
+      letterhead: {
+        title: escPosXmlText(lh.businessName),
+        lines: lh.lines.map((line) => escPosXmlText(line)),
+      },
       orderId: order.id,
       placedAt,
       shortOrderId,
@@ -180,18 +248,26 @@ export class PrintService {
         },
       })),
       pricing: {
-        subtotal: Number(order.subtotal),
-        discountAmount: Number(order.discountAmount),
-        tax: Number(order.tax),
-        deliveryFee: Number(order.deliveryFee ?? 0),
+        subtotal,
+        discountAmount,
+        tax,
+        deliveryFee,
         total: Number(order.total),
+        showDiscount: discountAmount > 0.005,
+        showDelivery: deliveryFee > 0.005,
+        showTax: tax > 0.005,
       },
       payment: {
         method: order.paymentMethod,
         status: order.paymentStatus,
+        showCashTender: Boolean(cashTender),
+        cashReceived: cashTender ? cashTender.tenderLkr.toFixed(2) : '',
+        changeGiven: cashTender ? cashTender.changeLkr.toFixed(2) : '',
+        summaryLine: `${this.formatPaymentMethodCustomer(order)} · ${formatPaymentStatusDisplayLabel(order.paymentStatus)}`,
       },
       fulfillment: {
         type: order.fulfillmentType,
+        summaryLine: this.formatFulfillmentCustomer(order),
         tableNumber: order.tableNumber ?? undefined,
         deliveryAddress: order.deliveryAddress ?? undefined,
       },

@@ -9,6 +9,7 @@ import type { OutboxService } from '../outbox/outbox.service';
 import { OrderService } from './order.service';
 import type { RequestUser } from '../../auth/current-user.decorator';
 import type { QueueResponseCacheService } from './queue-response-cache.service';
+import type { SupervisorService } from '../supervisor/supervisor.service';
 
 type TransitionFn = (
   from: OrderStatus,
@@ -68,12 +69,19 @@ function noopOutboxService(): OutboxService {
   } as unknown as OutboxService;
 }
 
+function noopSupervisorService(): SupervisorService {
+  return {
+    validateElevationSession: jest.fn().mockResolvedValue(true),
+  } as unknown as SupervisorService;
+}
+
 function emptyDeps(): [
   PrismaService,
   null,
   QueueResponseCacheService,
   StaffService,
   CouponService,
+  SupervisorService,
   CustomerService,
   LocationService,
   ActivityService,
@@ -86,6 +94,7 @@ function emptyDeps(): [
     noopQueueCache(),
     x as StaffService,
     x as CouponService,
+    noopSupervisorService(),
     x as CustomerService,
     x as LocationService,
     x as ActivityService,
@@ -279,6 +288,7 @@ describe('OrderService transition policy', () => {
       noopQueueCache(),
       {} as StaffService,
       {} as CouponService,
+      noopSupervisorService(),
       {} as CustomerService,
       {} as LocationService,
       {} as ActivityService,
@@ -326,6 +336,7 @@ describe('OrderService transition policy', () => {
       noopQueueCache(),
       {} as StaffService,
       {} as CouponService,
+      noopSupervisorService(),
       {} as CustomerService,
       {} as LocationService,
       {} as ActivityService,
@@ -370,6 +381,9 @@ describe('OrderService transition policy', () => {
           courierId: null,
         }),
       },
+      businessSettings: {
+        findUnique: jest.fn().mockResolvedValue({ paymentJson: null }),
+      },
       $transaction: jest.fn().mockImplementation(async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx)),
     };
     const svc = new OrderService(
@@ -378,6 +392,7 @@ describe('OrderService transition policy', () => {
       noopQueueCache(),
       {} as StaffService,
       {} as CouponService,
+      noopSupervisorService(),
       {} as CustomerService,
       {} as LocationService,
       {} as ActivityService,
@@ -387,6 +402,8 @@ describe('OrderService transition policy', () => {
       'o3',
       { role: 'CASHIER', sub: 'u1', email: '' } as RequestUser,
       'card',
+      undefined,
+      undefined,
     );
     expect(tx.order.update).toHaveBeenCalledWith(
       expect.objectContaining({

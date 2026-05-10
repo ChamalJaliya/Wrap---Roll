@@ -113,6 +113,12 @@ export function mergeQueueOrderFromApiPatch(existing: QueueOrder, apiBody: unkno
   if (df !== undefined) next.deliveryFee = df;
   const disc = num(row.discountAmount);
   if (disc !== undefined) next.discountAmount = disc;
+  if (row.discountCode !== undefined) {
+    next.discountCode =
+      row.discountCode == null || String(row.discountCode).trim() === ''
+        ? null
+        : String(row.discountCode).trim();
+  }
 
   if (row.customer !== undefined) {
     next.customer = mergeCustomer(existing.customer, row.customer);

@@ -535,6 +535,43 @@ model StaffAuditLog {
   createdAt    DateTime @default(now())
 }
 
+/// Hashed POS supervisor PIN (scrypt) for users with role ADMIN. Keyed by Supabase `user.id`.
+model StaffSupervisorPin {
+  staffUserId String   @id
+  pinHash     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+/// Opaque short-lived step-up session after a valid supervisor PIN + email challenge.
+model SupervisorElevationSession {
+  id               String    @id @default(uuid())
+  elevationToken   String    @unique
+  cashierUserId    String
+  supervisorUserId String
+  scope            String    @default("privileged_operations")
+  expiresAt        DateTime
+  consumedAt       DateTime?
+  createdAt        DateTime  @default(now())
+
+  @@index([cashierUserId, expiresAt])
+}
+
+model SupervisorElevationAudit {
+  id               String   @id @default(uuid())
+  cashierUserId    String
+  cashierEmail     String?
+  supervisorUserId String?
+  supervisorEmail  String?
+  action           String
+  scope            String?
+  success          Boolean
+  detailJson       Json?
+  createdAt        DateTime @default(now())
+
+  @@index([cashierUserId, createdAt])
+}
+
 model OutboxEvent {
   id             String      @id @default(uuid())
   eventType      String

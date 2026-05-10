@@ -214,10 +214,14 @@ export default function Index() {
     };
   }, [fetchAll]);
 
-  const collectCash = async (orderId: string) => {
+  const collectCash = async (orderId: string, totalLkr: number) => {
     setCollectingId(orderId);
     try {
-      await api.patch(`/orders/${orderId}/mark-payment-received`, { method: 'cash' });
+      const tender = (Math.round(Number(totalLkr) * 100) / 100).toFixed(2);
+      await api.patch(`/orders/${orderId}/mark-payment-received`, {
+        method: 'cash',
+        note: `Admin mark received · Tender Rs ${tender} · Change Rs 0.00`,
+      });
       await fetchAll(true);
     } finally {
       setCollectingId(null);
@@ -341,7 +345,7 @@ export default function Index() {
                   <Button
                     size="sm"
                     disabled={collectingId === o.id}
-                    onClick={() => void collectCash(o.id)}
+                    onClick={() => void collectCash(o.id, Number(o.total))}
                     className="h-7 text-xs"
                   >
                     {collectingId === o.id ? 'Collecting…' : 'Mark Received'}

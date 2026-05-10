@@ -80,6 +80,26 @@ export type ItemMarginsResponse = z.infer<typeof ItemMarginsResponseSchema>;
  *  in inventory.schema.ts (Sprint S5). Re-export from there; do not duplicate here.           *
  *  Use: import { type DatedMarginReport } from '@wrap-roll/contracts';                         */
 
+/** Card payments recorded in POS (standalone terminal — matches `PaymentEvent` card_collected). */
+export const CardCollectionReconciliationEventSchema = z.object({
+  order_id: z.string(),
+  amount_lkr: z.number().nonnegative(),
+  actor_role: z.string().nullable().optional(),
+  actor_user_id: z.string().nullable().optional(),
+  note: z.string().nullable().optional(),
+  recorded_at: z.string(),
+});
+export type CardCollectionReconciliationEvent = z.infer<
+  typeof CardCollectionReconciliationEventSchema
+>;
+
+export const CardCollectionReconciliationSchema = z.object({
+  count: z.number().int().nonnegative(),
+  total_lkr: z.number().nonnegative(),
+  events: z.array(CardCollectionReconciliationEventSchema),
+});
+export type CardCollectionReconciliation = z.infer<typeof CardCollectionReconciliationSchema>;
+
 /** `GET /analytics/payments/reconciliation` */
 export const PaymentReconciliationSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -90,6 +110,7 @@ export const PaymentReconciliationSchema = z.object({
   expected_cash_total: z.number().nonnegative(),
   collected_cash_total: z.number().nonnegative(),
   variance: z.number(),
+  card_collection: CardCollectionReconciliationSchema,
 });
 export type PaymentReconciliation = z.infer<typeof PaymentReconciliationSchema>;
 

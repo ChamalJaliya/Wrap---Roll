@@ -20,5 +20,13 @@ describe('normalizePaymentConfig', () => {
     expect(cfg.methods.cash).toBe(true);
     expect(cfg.methods.payhere).toBe(false);
   });
+
+  it('parses pos.requireSupervisorForCardCollection', () => {
+    const cfg = normalizePaymentConfig({
+      methods: { cash: true, payhere: false, card: true, online: false },
+      pos: { requireSupervisorForCardCollection: true },
+    });
+    expect(cfg.pos?.requireSupervisorForCardCollection).toBe(true);
+  });
 });
 

@@ -48,13 +48,19 @@ export function isDeferredPaymentCollection(params: {
   paymentStatus: string;
 }): boolean {
   const { paymentCollection, paymentMethod, paymentStatus } = params;
-  if (paymentCollection === 'on_delivery' || paymentCollection === 'on_pickup') return true;
+  if (
+    paymentCollection === 'on_delivery' ||
+    paymentCollection === 'on_pickup' ||
+    paymentCollection === 'at_collection'
+  )
+    return true;
   return paymentMethod.toLowerCase() === 'cash' && paymentStatus.toLowerCase() !== 'completed';
 }
 
 export function getPaymentCollectionLabel(paymentCollection: string, isDeferredCollection: boolean): string {
   if (paymentCollection === 'on_delivery') return 'Pay on delivery';
   if (paymentCollection === 'on_pickup') return 'Pay on pickup';
+  if (paymentCollection === 'at_collection') return 'Pay at collection';
   if (isDeferredCollection) return 'Pay later';
   return 'Immediate';
 }
@@ -122,6 +128,8 @@ export function getStepDescription(params: {
   if (stepStatus === 'placed' && isDeferredCollection) {
     if (paymentCollection === 'on_delivery') return 'Order received. Payment will be collected on delivery';
     if (paymentCollection === 'on_pickup') return 'Order received. Payment will be collected on pickup';
+    if (paymentCollection === 'at_collection')
+      return 'Order received. Payment will be collected when you finish (table or counter)';
     return fulfillmentType === 'delivery'
       ? 'Order received. Payment will be collected on delivery'
       : 'Order received. Payment will be collected on pickup';

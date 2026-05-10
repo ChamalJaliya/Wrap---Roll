@@ -17,8 +17,13 @@ import {
 import type { Observable } from 'rxjs';
 import type { Request } from 'express';
 import { ApiBody, ApiOperation, ApiParam, ApiQuery, ApiTags, ApiBearerAuth } from '@nestjs/swagger';
-import { CreateOrderBodyDto, SupportOrderUpdateBodyDto } from '../../openapi/zod-dtos';
+import {
+  CreateOrderBodyDto,
+  SupportOrderUpdateBodyDto,
+  ReplaceOrderLineItemsBodyDto,
+} from '../../openapi/zod-dtos';
 import { OrderService } from './order.service';
+import { InvoiceEmailService } from '../notification/invoice-email.service';
 import { QueueResponseCacheService } from './queue-response-cache.service';
 import { PrivateNoStoreVaryAuthInterceptor } from './private-no-store-vary-auth.interceptor';
 import { SupabaseAuthGuard, Roles } from '../../auth';
@@ -35,6 +40,7 @@ export class OrderController {
   constructor(
     private readonly orderService: OrderService,
     private readonly queueCache: QueueResponseCacheService,
+    private readonly invoiceEmailService: InvoiceEmailService,
   ) {}
 
   // INT-003 — Roles are now UPPERCASE
@@ -50,9 +56,10 @@ export class OrderController {
   async createOrder(
     @Body() body: unknown,
     @Headers('x-idempotency-key') idempotencyKey?: string,
+    @Headers('x-supervisor-elevation') supervisorElevation?: string,
     @CurrentUser() user?: RequestUser,
   ) {
-    return this.orderService.createOrder(body, idempotencyKey, user);
+    return this.orderService.createOrder(body, idempotencyKey, user, supervisorElevation);
   }
 
   // API-001 — status moved from @Body to @Query
@@ -254,8 +261,12 @@ export class OrderController {
     @CurrentUser() user: RequestUser,
     @Body('method') method: 'cash' | 'card',
     @Body('note') note?: string,
+    @Headers('x-supervisor-elevation') supervisorElevation?: string | string[],
   ) {
-    return this.orderService.markPaymentReceived(id, user, method, note);
+    const hdr = Array.isArray(supervisorElevation)
+      ? supervisorElevation[0]
+      : supervisorElevation;
+    return this.orderService.markPaymentReceived(id, user, method, note, hdr);
   }
 
   @Patch(':id/support')
@@ -267,5 +278,42 @@ export class OrderController {
     @Body() body: Parameters<OrderService['updateOrderSupportDetails']>[2],
   ) {
     return this.orderService.updateOrderSupportDetails(id, user, body);
+  }
+
+  @Patch(':id/line-items')
+  @Roles('ADMIN', 'CASHIER')
+  @ApiOperation({
+    summary: 'Replace order line items',
+    description:
+      'Production policy: cashier may edit lines while payment is pending, or when paid but still pre-kitchen (`placed`/`paid`). Paid delivery in `ready` is frozen. ADMIN may override locked orders with `adminOverrideReason`.',
+  })
+  @ApiBody({ type: ReplaceOrderLineItemsBodyDto })
+  async replaceOrderLineItems(
+    @Param('id') id: string,
+    @CurrentUser() user: RequestUser,
+    @Body() body: unknown,
+  ) {
+    return this.orderService.replaceOrderLineItems(id, user, body);
+  }
+
+  @Post(':id/email-receipt')
+  @Roles('ADMIN', 'CASHIER')
+  @ApiOperation({
+    summary: 'Email HTML receipt',
+    description:
+      'Sends the receipt to the email on the linked Customer row. Use ?force=true to attempt again after a successful send.',
+  })
+  @ApiQuery({
+    name: 'force',
+    required: false,
+    description: 'When true, bypass “already sent” dedupe (audit trail still records the attempt)',
+  })
+  async sendReceiptEmail(
+    @Param('id') id: string,
+    @Query('force') force?: string,
+  ) {
+    return this.invoiceEmailService.sendReceiptEmailManual(id, {
+      force: force === '1' || force === 'true',
+    });
   }
 }

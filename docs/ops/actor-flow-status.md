@@ -60,6 +60,9 @@ flowchart LR
 
 ### Cashier
 - Creates order (`placed` or `paid` depending on channel/payment evidence).
+- **Counter POS payment timing:** Cashiers choose **Pay now** (`paymentCollection: immediate` → payment completed at submit) or **Pay later** (deferred: `on_pickup` / `on_delivery` / `at_collection` by fulfillment; kitchen may proceed while `paymentStatus` stays `pending`). **Pay later** does not ask cash vs card at placement — the payload uses a **cash placeholder** for policy; **`mark-payment-received`** records the actual **cash or card** at collection. **Phone orders** stay deferred by fulfillment (pickup vs delivery), not the counter toggle.
+- **Collection is mandatory for handoff:** `ready -> delivered` requires `paymentStatus: completed`. Queue cards prompt **Collect cash/card** before **Mark collected**; cancelling must not be the only obvious action on unpaid ready tickets.
+- Payload field `paymentCollection` is stored end-to-end (including offline sync); API `derivePaymentCollection` recognizes `ON_*` / `AT_COLLECTION_*` transaction-id prefixes for queue labels (`formatPaymentCollectionDisplayLabel` maps takeaway pay-later to “Pay at handoff”).
 - Handles support edits (phone/name/address/time corrections).
 - Handles payment reconciliation (`mark-payment-received`) when cash/card is collected.
 - Sees broad queue (`placed` through `delivered`) with operational and support slices.

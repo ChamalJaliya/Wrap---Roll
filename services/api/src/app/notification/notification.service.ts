@@ -6,6 +6,7 @@ import {
   NOTIFICATION_JOB,
   type NotificationJobName,
 } from './notification.constants';
+import { InvoiceEmailService } from './invoice-email.service';
 
 @Injectable()
 export class NotificationService {
@@ -13,7 +14,8 @@ export class NotificationService {
 
   constructor(
     @Inject('SMS_PROVIDER') private readonly smsProvider: SmsProvider,
-    private readonly prisma: PrismaService
+    private readonly prisma: PrismaService,
+    private readonly invoiceEmailService: InvoiceEmailService,
   ) {}
 
   async processQueueJob(jobName: NotificationJobName, payload: OutboxRelayJobPayload, attemptsMade = 0) {
@@ -47,6 +49,7 @@ export class NotificationService {
           'Your order is confirmed! It’s moving to the kitchen now. 🌯',
           'order.paid_sms',
         );
+        void this.invoiceEmailService.trySendPaidOrderInvoice(orderId);
         return;
       case NOTIFICATION_JOB.orderReady:
         await this.processNotification(

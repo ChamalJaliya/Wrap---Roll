@@ -4,8 +4,13 @@ export type PaymentMethodsConfig = {
     card: boolean;
     online: boolean;
 };
+export declare const POS_CARD_COLLECTION_SUPERVISOR_SCOPE = 'card_collection';
+export type PosPaymentControlsConfig = {
+    requireSupervisorForCardCollection?: boolean;
+};
 export type NormalizedPaymentConfig = {
     methods: PaymentMethodsConfig;
+    pos?: PosPaymentControlsConfig;
 };
 export type SpecialHoursEntry = {
     openingTimeMinutes?: number;

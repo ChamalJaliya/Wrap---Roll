@@ -1,4 +1,10 @@
-import { formatPaymentCollectionLabel, type QueueOrder, type QueueOrderStatus } from '@wrap-roll/contracts';
+import {
+  formatPaymentCollectionDisplayLabel,
+  formatPersistedDiscountCaption,
+  evaluateLineItemReplacementPolicy,
+  type QueueOrder,
+  type QueueOrderStatus,
+} from '@wrap-roll/contracts';
 import { Button } from './ui/button';
 
 type QueueOrderCardProps = {
@@ -7,6 +13,10 @@ type QueueOrderCardProps = {
   onMove?: (orderId: string, nextStatus: QueueOrderStatus) => void;
   onCollectCash?: (orderId: string) => void;
   onCollectCard?: (orderId: string) => void;
+  /** Load order lines into POS for `PATCH /orders/:id/line-items` (policy-gated server-side). */
+  onAmendLines?: (order: QueueOrder) => void;
+  /** Current staff role for amendment policy when queue row omits `canReplaceLineItems`. */
+  staffRoleForAmend?: string;
   showMoveAction?: boolean;
   showPaymentActions?: boolean;
   showDeliveryAddress?: boolean;
@@ -38,6 +48,8 @@ export function QueueOrderCard({
   onMove,
   onCollectCash,
   onCollectCard,
+  onAmendLines,
+  staffRoleForAmend,
   showMoveAction = true,
   showPaymentActions = true,
   showDeliveryAddress = false,
@@ -83,8 +95,37 @@ export function QueueOrderCard({
       : startPrepBlockedReason ?? undefined;
   const paymentCollectionLabel =
     order.paymentCollection && order.paymentCollection !== 'immediate'
-      ? formatPaymentCollectionLabel(order.paymentCollection)
+      ? formatPaymentCollectionDisplayLabel(order.paymentCollection, order.fulfillmentType)
       : null;
+
+  const lineAmendPolicy = evaluateLineItemReplacementPolicy(
+    {
+      status: order.status,
+      paymentStatus: order.paymentStatus,
+      fulfillmentType: order.fulfillmentType ?? 'takeaway',
+    },
+    staffRoleForAmend ?? 'CASHIER',
+  );
+  const serverReplaceFlag = order.actions?.canReplaceLineItems;
+  const canAmendLines =
+    serverReplaceFlag === false
+      ? false
+      : serverReplaceFlag === true || lineAmendPolicy.allowed;
+  const amendLinesBlockedCopy = !canAmendLines
+    ? order.actions?.lineReplaceBlockedMessage ??
+      (!lineAmendPolicy.allowed && 'message' in lineAmendPolicy
+        ? lineAmendPolicy.message
+        : null)
+    : null;
+
+  /** Ready but payment still open — API blocks delivered; avoid offering only Cancel as the forward CTA. */
+  const unpaidReadyHandoffBlocked =
+    order.status === 'ready' &&
+    order.paymentStatus !== 'completed' &&
+    order.blockedReasonsByStatus?.delivered === 'PAYMENT_NOT_COMPLETED';
+
+  const primaryWouldBeCancelOnly =
+    unpaidReadyHandoffBlocked && primaryMove === 'cancelled' && allowedNext.length === 1;
 
   const fmtTime = (v: string | Date | undefined) => {
     if (v == null || v === '') return '';
@@ -113,6 +154,15 @@ export function QueueOrderCard({
         <p className="text-sm text-muted-foreground">
           {(order.customer?.name || order.customerName || 'Guest') + ' • LKR ' + Number(order.total).toFixed(2)}
         </p>
+        {Number(order.discountAmount ?? 0) > 0 ? (
+          <p className="mt-0.5 text-xs font-semibold text-violet-800">
+            −LKR {Number(order.discountAmount).toFixed(2)}
+            <span className="font-normal text-violet-950/80">
+              {' '}
+              · {formatPersistedDiscountCaption(order)}
+            </span>
+          </p>
+        ) : null}
         {showDeliveryAddress && isDelivery && order.deliveryAddress ? (
           <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
             {order.deliveryAddress}
@@ -179,7 +229,53 @@ export function QueueOrderCard({
       </div>
 
       <div className="mt-3 space-y-2">
-        {showMoveAction && primaryMove ? (
+        {showPaymentActions && unpaidReadyHandoffBlocked ? (
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-[11px] font-medium text-amber-950">
+            {order.fulfillmentType === 'delivery'
+              ? 'Collect payment before marking delivered or releasing to courier.'
+              : 'Collect payment first — then mark collected. Handoff requires payment.'}
+          </p>
+        ) : null}
+
+        {showPaymentActions &&
+        order.actions?.canCollectPayment &&
+        order.paymentStatus !== 'completed' &&
+        unpaidReadyHandoffBlocked ? (
+          <div className="grid grid-cols-1 gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              className="w-full whitespace-nowrap"
+              onClick={() => onCollectCash?.(order.id)}
+            >
+              Collect cash
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="w-full whitespace-nowrap"
+              onClick={() => onCollectCard?.(order.id)}
+            >
+              Collect card
+            </Button>
+          </div>
+        ) : null}
+
+        {showMoveAction && primaryWouldBeCancelOnly ? (
+          <Button
+            type="button"
+            size="sm"
+            className="h-9 w-full"
+            disabled
+            title="Record cash or card in the order panel first (tap the order header to open). Then mark collected."
+          >
+            {moveLabel('delivered')}
+          </Button>
+        ) : null}
+
+        {showMoveAction && primaryMove && !primaryWouldBeCancelOnly ? (
           <Button
             type="button"
             size="sm"
@@ -206,7 +302,10 @@ export function QueueOrderCard({
           </Button>
         ) : null}
 
-        {showPaymentActions && order.actions?.canCollectPayment && order.paymentStatus !== 'completed' ? (
+        {showPaymentActions &&
+        order.actions?.canCollectPayment &&
+        order.paymentStatus !== 'completed' &&
+        !unpaidReadyHandoffBlocked ? (
           <div className="grid grid-cols-1 gap-2">
             <Button
               type="button"
@@ -227,6 +326,38 @@ export function QueueOrderCard({
               Collect card
             </Button>
           </div>
+        ) : null}
+
+        {onAmendLines ? (
+          <div className="space-y-1.5">
+            {canAmendLines ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-9 w-full border-violet-200 bg-violet-50 text-violet-950 hover:bg-violet-100"
+                onClick={() => onAmendLines(order)}
+              >
+                Amend lines (POS)
+              </Button>
+            ) : amendLinesBlockedCopy ? (
+              <p className="rounded-lg border border-muted bg-muted/40 px-2 py-1.5 text-[11px] text-muted-foreground">
+                {amendLinesBlockedCopy}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
+        {showMoveAction && primaryWouldBeCancelOnly ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-9 w-full text-destructive hover:text-destructive"
+            onClick={() => onMove?.(order.id, 'cancelled')}
+          >
+            Cancel order
+          </Button>
         ) : null}
       </div>
     </article>

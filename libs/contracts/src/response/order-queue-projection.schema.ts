@@ -76,6 +76,10 @@ export const KitchenQueueOrderSchema = z
         canMarkDelivered: z.boolean(),
         canVoid: z.boolean(),
         canRefund: z.boolean(),
+        canReplaceLineItems: z.boolean().optional(),
+        lineReplaceBlockedMessage: z.string().nullable().optional(),
+        canEditSupportDetails: z.boolean().optional(),
+        supportEditBlockedMessage: z.string().nullable().optional(),
       })
       .optional(),
     blockedReasonsByStatus: z
@@ -134,6 +138,10 @@ export const CourierQueueOrderSchema = z
         canMarkDelivered: z.boolean(),
         canVoid: z.boolean(),
         canRefund: z.boolean(),
+        canReplaceLineItems: z.boolean().optional(),
+        lineReplaceBlockedMessage: z.string().nullable().optional(),
+        canEditSupportDetails: z.boolean().optional(),
+        supportEditBlockedMessage: z.string().nullable().optional(),
       })
       .optional(),
     blockedReasonsByStatus: z

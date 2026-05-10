@@ -55,7 +55,8 @@ interface DeliveryState {
   fetchMyTransitOrders: () => Promise<void>;
   assignOrder: (orderId: string) => Promise<void>;
   updateStatus: (orderId: string, status: DeliveryOrder['status']) => Promise<void>;
-  collectCash: (orderId: string, note?: string) => Promise<void>;
+  /** Pass `totalLkr` so receipt / recon can show tender (assumes exact change when collecting at door). */
+  collectCash: (orderId: string, totalLkr?: number, note?: string) => Promise<void>;
   collectCard: (orderId: string, note?: string) => Promise<void>;
 }
 
@@ -202,10 +203,15 @@ export const useDeliveryStore = create<DeliveryState>((set, get) => ({
     }
   },
 
-  collectCash: async (orderId: string, note?: string) => {
+  collectCash: async (orderId: string, totalLkr?: number, note?: string) => {
     try {
+      const base = note?.trim() || 'Cash collected by courier at doorstep';
+      const tenderNote =
+        typeof totalLkr === 'number' && Number.isFinite(totalLkr) && totalLkr > 0
+          ? `${base} · Tender Rs ${(Math.round(totalLkr * 100) / 100).toFixed(2)} · Change Rs 0.00`
+          : base;
       await api.patch(`/orders/${orderId}/mark-payment-received`, {
-        ...paymentCollectionPayload('cash', note || 'Cash collected by courier at doorstep'),
+        ...paymentCollectionPayload('cash', tenderNote),
       } satisfies MarkPaymentReceivedPayload);
       await get().fetchMyTransitOrders();
     } catch (error) {

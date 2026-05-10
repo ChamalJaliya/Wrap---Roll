@@ -55,3 +55,45 @@ export function computeOperationalCalendarDate(input: {
   }
   return zonedYmd(anchor, tz);
 }
+
+/**
+ * Half-open UTC range `[start, end)` for the **calendar** day `dateYmd` in `timeZone`
+ * (not open→close). Used for queue + reconciliation so late-night POS orders on the
+ * same local date are not cut off at `closingTimeMinutes`.
+ */
+export function utcCalendarDayRangeInTimeZone(
+  dateYmd: string,
+  timeZone: string,
+): { start: Date; end: Date } {
+  const tz = timeZone?.trim() || 'UTC';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateYmd)) {
+    throw new RangeError(`Invalid dateYmd: ${dateYmd}`);
+  }
+
+  const zm = (ts: number) => zonedYmd(new Date(ts), tz);
+  const [y, mo, d] = dateYmd.split('-').map(Number);
+  let probe = Date.UTC(y, mo - 1, d, 12, 0, 0);
+  if (zm(probe) !== dateYmd) {
+    let found = false;
+    for (let hop = -3; hop <= 3; hop++) {
+      const p = probe + hop * 24 * 60 * 60 * 1000;
+      if (zm(p) === dateYmd) {
+        probe = p;
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      throw new RangeError(`Cannot resolve calendar day ${dateYmd} in ${tz}`);
+    }
+  }
+
+  const minute = 60_000;
+  let startMs = probe;
+  while (zm(startMs - minute) === dateYmd) startMs -= minute;
+
+  let endMs = startMs + minute;
+  while (zm(endMs) === dateYmd) endMs += minute;
+
+  return { start: new Date(startMs), end: new Date(endMs) };
+}

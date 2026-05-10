@@ -350,7 +350,16 @@ export default function OrdersConsolePage() {
   };
 
   const markCashReceived = async (id: string) => {
-    const res = await api.patch(`/orders/${id}/mark-payment-received`, { method: 'cash' });
+    const row =
+      orders.find((x) => x.id === id) ?? searchResults.find((x) => x.id === id) ?? null;
+    const totalLkr = Number(row?.total ?? 0);
+    const tender = (Math.round(totalLkr * 100) / 100).toFixed(2);
+    const res = await api.patch(`/orders/${id}/mark-payment-received`, {
+      method: 'cash',
+      ...(row
+        ? { note: `Admin mark received · Tender Rs ${tender} · Change Rs 0.00` }
+        : {}),
+    });
     patchOrderRowsFromApi(id, res.data);
     void refreshQueueAfterMutation({ withRecon: true });
   };

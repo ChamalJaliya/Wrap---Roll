@@ -5,10 +5,20 @@ import { CASHIER_ACCESS_COOKIE } from '../../../../lib/authCookies';
 
 export const runtime = 'nodejs';
 
-const BASE = (process.env.API_PROXY_TARGET || 'http://127.0.0.1:4000/api').replace(
-  /\/?$/,
-  '',
-);
+/**
+ * Same rules as `/api/orders/route.ts`: prefer `NEST_API_URL` so PATCH and POST hit one Nest.
+ * Append `/api` when missing (Nest global prefix).
+ */
+function nestUpstreamApiRoot(): string {
+  const raw =
+    process.env.NEST_API_URL ?? process.env.API_PROXY_TARGET ?? 'http://localhost:4000';
+  const withApi = raw.endsWith('/api')
+    ? raw
+    : `${raw.replace(/\/+$/, '')}/api`;
+  return withApi.replace(/\/+$/, '');
+}
+
+const BASE = nestUpstreamApiRoot();
 
 const HOP_BY_HOP = new Set([
   'connection',
@@ -46,6 +56,9 @@ function forwardSseResponseHeaders(upstream: Response, requestId: string): Heade
   return out;
 }
 
+/** Must match `SUPERVISOR_ELEVATION_HEADER` on Nest (`supervisor-elevation.constants.ts`). */
+const SUPERVISOR_ELEVATION_HEADER = 'x-supervisor-elevation';
+
 function forwardHeaders(incoming: NextRequest, requestId: string): Headers {
   const h = new Headers();
   const ct = incoming.headers.get('content-type');
@@ -56,6 +69,10 @@ function forwardHeaders(incoming: NextRequest, requestId: string): Headers {
   const cookieToken = incoming.cookies.get(CASHIER_ACCESS_COOKIE)?.value;
   if (auth) h.set('authorization', auth);
   else if (cookieToken) h.set('authorization', `Bearer ${cookieToken}`);
+  const supervisorElevation = incoming.headers.get(SUPERVISOR_ELEVATION_HEADER);
+  if (supervisorElevation) {
+    h.set(SUPERVISOR_ELEVATION_HEADER, supervisorElevation);
+  }
   h.set('x-request-id', requestId);
   return h;
 }

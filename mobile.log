@@ -1,0 +1,22 @@
+
+> wrap-and-roll@0.0.0 start:mobile
+> npm run start -w mobile
+
+
+> mobile@1.0.0 start
+> expo start
+
+env: load .env
+env: export EXPO_PUBLIC_SUPABASE_URL EXPO_PUBLIC_SUPABASE_ANON_KEY EXPO_PUBLIC_API_URL
+Starting project at /Users/chamal/Desktop/Wrap & Roll/apps/mobile
+Starting Metro Bundler
+The following packages should be updated for best compatibility with the installed expo version:
+  expo@54.0.33 - expected version: ~54.0.34
+  expo-haptics@55.0.14 - expected version: ~15.0.8
+  expo-linear-gradient@55.0.13 - expected version: ~15.0.8
+  expo-linking@8.0.11 - expected version: ~8.0.12
+  expo-location@55.1.8 - expected version: ~19.0.8
+  expo-web-browser@15.0.10 - expected version: ~15.0.11
+Your project may not work correctly until you install the expected versions of the packages.
+Waiting on http://localhost:8081
+Logs for your project will appear below.

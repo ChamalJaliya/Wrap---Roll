@@ -5,8 +5,18 @@ export type PaymentMethodsConfig = {
   online: boolean;
 };
 
+/** Supervisor elevation scope for recording standalone terminal card collection in POS (`POST /supervisor/challenge` body `scope`). */
+export const POS_CARD_COLLECTION_SUPERVISOR_SCOPE = 'card_collection' as const;
+
+/** Optional cashier / in-store controls stored inside `paymentJson`. */
+export type PosPaymentControlsConfig = {
+  /** When true, cashiers must present a valid supervisor elevation token (same scope) to PATCH card collection. Admins bypass. */
+  requireSupervisorForCardCollection?: boolean;
+};
+
 export type NormalizedPaymentConfig = {
   methods: PaymentMethodsConfig;
+  pos?: PosPaymentControlsConfig;
 };
 
 export type SpecialHoursEntry = {

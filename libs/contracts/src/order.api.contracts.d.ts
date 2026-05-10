@@ -14,6 +14,10 @@ export type QueueOrderActions = {
     canMarkDelivered: boolean;
     canVoid: boolean;
     canRefund: boolean;
+    canReplaceLineItems?: boolean;
+    lineReplaceBlockedMessage?: string | null;
+    canEditSupportDetails?: boolean;
+    supportEditBlockedMessage?: string | null;
 };
 export type QueueOrder = {
     id: string;
@@ -76,6 +80,7 @@ export type QueueOrder = {
 };
 export type SupportOrderItem = {
     id: string;
+    menuItemId?: string;
     name: string;
     quantity: number;
     unitPrice?: ApiNumeric;
@@ -114,6 +119,9 @@ export type SupportOrderDetails = {
     kitchenName?: string | null;
     /** POS schedule override (outside public hours/cutoff; not used for delivery). */
     staffScheduleOverride?: boolean;
+    /** From latest `cash_collected` payment event note with till audit (LKR). Omitted when absent. */
+    cashReceivedLkr?: ApiNumeric | null;
+    changeReturnedLkr?: ApiNumeric | null;
     items: SupportOrderItem[];
 };
 export type PaymentEventRow = {
@@ -221,6 +229,8 @@ export type CashierOrderSyncPayload = {
     deliveryLatitude?: number;
     deliveryLongitude?: number;
     orderSource?: CashierOrderSource;
+    /** Admin-defined coupon code; discount amount is validated only on the server. */
+    discountCode?: string;
     createdAt: string;
 };
 //# sourceMappingURL=order.api.contracts.d.ts.map
