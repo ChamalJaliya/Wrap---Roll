@@ -258,7 +258,7 @@ export function QueueOrderCard({
               className="w-full whitespace-nowrap"
               onClick={() => onCollectCard?.(order.id)}
             >
-              Collect card
+              Collect card (terminal)
             </Button>
           </div>
         ) : null}
@@ -269,7 +269,7 @@ export function QueueOrderCard({
             size="sm"
             className="h-9 w-full"
             disabled
-            title="Record cash or card in the order panel first (tap the order header to open). Then mark collected."
+            title="Record cash or card (terminal) in the order panel first (tap the order header to open). Then mark collected."
           >
             {moveLabel('delivered')}
           </Button>
@@ -323,7 +323,7 @@ export function QueueOrderCard({
               className="w-full whitespace-nowrap"
               onClick={() => onCollectCard?.(order.id)}
             >
-              Collect card
+              Collect card (terminal)
             </Button>
           </div>
         ) : null}

@@ -324,6 +324,28 @@ export function formatPaymentStatusDisplayLabel(
   }
 }
 
+/**
+ * Staff-facing payment method label.
+ * `card` means card captured on a physical terminal (not client online checkout).
+ */
+export function formatStaffPaymentMethodLabel(
+  paymentMethod: string | null | undefined,
+): string {
+  const s = String(paymentMethod ?? '').toLowerCase();
+  switch (s) {
+    case 'card':
+      return 'Card (terminal)';
+    case 'cash':
+      return 'Cash';
+    case 'payhere':
+      return 'PayHere online';
+    case 'online':
+      return 'Online';
+    default:
+      return paymentMethod ? String(paymentMethod) : '—';
+  }
+}
+
 export function formatPaymentCollectionDisplayLabel(
   paymentCollection: CashierPaymentCollection | string | null | undefined,
   fulfillmentType?: 'takeaway' | 'dine_in' | 'delivery' | string | null,

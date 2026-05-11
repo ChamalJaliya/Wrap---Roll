@@ -59,6 +59,7 @@ import {
   DialogHeader,
   DialogTitle,
   EmptyState,
+  Input,
   MetricCard,
   OrderQueueBoard,
   OpsLayout,
@@ -588,6 +589,7 @@ export default function Index() {
   const [businessToday, setBusinessToday] = useState<string | null>(null);
   const [reconSummary, setReconSummary] = useState<ReconciliationSummary | null>(null);
   const [reconLoading, setReconLoading] = useState(false);
+  const [cashDrawerCounted, setCashDrawerCounted] = useState('');
   const [opsBoardView, setOpsBoardView] = useState<'attention' | 'order' | 'payment'>('attention');
   const [nextUpLaneFilter, setNextUpLaneFilter] = useState<
     'all' | 'payment' | 'prep' | 'ready' | 'en_route'
@@ -1874,7 +1876,7 @@ export default function Index() {
       const row = queueBoardOrders.find((o) => o.id === orderId);
       if (row && row.paymentStatus !== 'completed') {
         toast.error(
-          'Collect payment before completing handoff — open the order (Support / Orders) and record cash or card there.',
+          'Collect payment before completing handoff — open the order (Support / Orders) and record cash or card (terminal) there.',
         );
         return;
       }
@@ -3794,6 +3796,90 @@ export default function Index() {
                     </div>
                   ) : reconSummary ? (
                     <>
+                      {(() => {
+                        const byMethod = new Map(reconSummary.byMethod.map((row) => [row.method, row]));
+                        const cashCollected = Number(byMethod.get('cash')?.completedTotal ?? 0);
+                        const cardCollected = Number(byMethod.get('card')?.completedTotal ?? 0);
+                        const digitalCollected =
+                          Number(byMethod.get('payhere')?.completedTotal ?? 0) +
+                          Number(byMethod.get('online')?.completedTotal ?? 0);
+                        const collectedTotal = reconSummary.byMethod.reduce(
+                          (sum, row) => sum + Number(row.completedTotal ?? 0),
+                          0,
+                        );
+                        const payAtCollectionPending = Number(
+                          byMethod.get('pay_at_collection')?.pendingCount ?? 0,
+                        );
+                        const drawerCounted = Number(cashDrawerCounted);
+                        const hasDrawerCount = Number.isFinite(drawerCounted) && cashDrawerCounted.trim() !== '';
+                        const cashVariance = hasDrawerCount ? drawerCounted - cashCollected : 0;
+                        const varianceTone =
+                          cashVariance === 0 ? 'text-emerald-700' : cashVariance > 0 ? 'text-blue-700' : 'text-rose-700';
+                        return (
+                          <div className="mb-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+                            <div className="rounded-md border border-emerald-200 bg-emerald-50 p-2">
+                              <p className="text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+                                Cash collected
+                              </p>
+                              <p className="text-lg font-black tabular-nums text-emerald-900">
+                                Rs {cashCollected.toFixed(2)}
+                              </p>
+                            </div>
+                            <div className="rounded-md border border-sky-200 bg-sky-50 p-2">
+                              <p className="text-[10px] font-bold uppercase tracking-wide text-sky-700">
+                                Card collected
+                              </p>
+                              <p className="text-lg font-black tabular-nums text-sky-900">
+                                Rs {cardCollected.toFixed(2)}
+                              </p>
+                            </div>
+                            <div className="rounded-md border border-indigo-200 bg-indigo-50 p-2">
+                              <p className="text-[10px] font-bold uppercase tracking-wide text-indigo-700">
+                                Digital collected
+                              </p>
+                              <p className="text-lg font-black tabular-nums text-indigo-900">
+                                Rs {digitalCollected.toFixed(2)}
+                              </p>
+                            </div>
+                            <div className="rounded-md border border-zinc-200 bg-zinc-50 p-2">
+                              <p className="text-[10px] font-bold uppercase tracking-wide text-zinc-600">
+                                Total collected
+                              </p>
+                              <p className="text-lg font-black tabular-nums text-zinc-900">
+                                Rs {collectedTotal.toFixed(2)}
+                              </p>
+                            </div>
+                            <div className="rounded-md border border-amber-200 bg-amber-50 p-2">
+                              <p className="text-[10px] font-bold uppercase tracking-wide text-amber-700">
+                                Pending at collection
+                              </p>
+                              <p className="text-lg font-black tabular-nums text-amber-900">
+                                {payAtCollectionPending}
+                              </p>
+                            </div>
+                            <div className="rounded-md border border-zinc-200 bg-white p-2 sm:col-span-2 lg:col-span-5">
+                              <div className="flex flex-wrap items-end gap-2">
+                                <label className="text-[11px] font-semibold text-zinc-600">
+                                  Cash drawer counted (Rs)
+                                </label>
+                                <Input
+                                  value={cashDrawerCounted}
+                                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                                    setCashDrawerCounted(e.target.value)
+                                  }
+                                  inputMode="decimal"
+                                  placeholder="Enter counted cash"
+                                  className="h-8 w-48"
+                                />
+                                <p className={`text-xs font-bold ${varianceTone}`}>
+                                  Variance vs collected cash:{' '}
+                                  {hasDrawerCount ? `Rs ${cashVariance.toFixed(2)}` : '—'}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
                       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                         <MetricCard
                           size="sm"
@@ -3854,8 +3940,8 @@ export default function Index() {
                           </tbody>
                         </table>
                         <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
-                          <strong>Pay at collection</strong> is pay-later orders (cash or card not chosen yet). After
-                          you collect, they move to the cash or card row.
+                          <strong>Pay at collection</strong> is pay-later orders (cash or card/terminal not chosen yet).
+                          After you collect, they move to the cash or card (terminal) row.
                         </p>
                       </div>
                     </>
@@ -4403,7 +4489,7 @@ export default function Index() {
                               disabled={selectedSupportOrder.paymentStatus === 'completed'}
                               onClick={() => void collectAtCounterAndRefreshSupport(selectedSupportOrder.id, 'card')}
                             >
-                              Collect card
+                              Collect card (terminal)
                             </Button>
                           </div>
                           <div className="mt-3 grid grid-cols-2 gap-2">
@@ -5113,7 +5199,7 @@ export default function Index() {
                 <p className="text-[11px] leading-snug text-muted-foreground">
                   {counterPaymentTiming === 'now'
                     ? 'Payment is recorded when you place the order (cash/card now).'
-                    : 'Kitchen can proceed. You will choose cash or card when you collect payment on the order (before completing handoff).'}
+                    : 'Kitchen can proceed. You will choose cash or card (terminal) when you collect payment on the order (before completing handoff).'}
                 </p>
               </div>
             ) : (
@@ -5271,19 +5357,19 @@ export default function Index() {
               <div className="mb-4 rounded-xl border border-dashed border-muted-foreground/25 bg-muted/20 px-3 py-2.5">
                 <p className="text-xs font-semibold text-foreground">Payment method at collection</p>
                 <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
-                  Cash or card is recorded when you tap <strong>Collect cash</strong> or{' '}
-                  <strong>Collect card</strong> on the order — nothing to choose here.
+                  Cash or card (terminal) is recorded when you tap <strong>Collect cash</strong> or{' '}
+                  <strong>Collect card (terminal)</strong> on the order — nothing to choose here.
                 </p>
               </div>
             )}
             {orderIntake === 'phone' && fulfillmentType === 'delivery' ? (
               <p className="mb-3 text-xs text-muted-foreground">
-                Phone delivery is payment-on-delivery (cash or card captured at handoff).
+                Phone delivery is payment-on-delivery (cash or card via terminal captured at handoff).
               </p>
             ) : null}
             {orderIntake === 'phone' && (fulfillmentType === 'takeaway' || fulfillmentType === 'dine_in') ? (
               <p className="mb-3 text-xs text-muted-foreground">
-                Phone order is payment-on-pickup (cash or card captured on collection).
+                Phone order is payment-on-pickup (cash or card via terminal captured on collection).
               </p>
             ) : null}
               </>
@@ -5706,7 +5792,7 @@ export default function Index() {
                                 void collectAtCounterAndRefreshSupport(selectedSupportOrder.id, 'card')
                               }
                             >
-                              Collect card
+                              Collect card (terminal)
                             </Button>
                           </div>
                           <div className="grid grid-cols-2 gap-2">

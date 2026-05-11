@@ -240,3 +240,12 @@
 (node:41649) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
  GET /en/order/success?id=6827a247-b7eb-4441-93c6-a92828be576e 200 in 499ms (compile: 480ms, proxy.ts: 5ms, render: 14ms)
+(node:63655) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /en 200 in 256ms (compile: 56ms, proxy.ts: 6ms, render: 195ms)
+
+
+
+ NX   Successfully ran target dev for project client
+
+

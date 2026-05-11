@@ -242,6 +242,30 @@ export class OrderController {
     return this.orderService.assignCourier(id, effectiveCourierId, user);
   }
 
+  @Patch(':id/delivery-attempt')
+  @Roles('ADMIN', 'CASHIER', 'COURIER')
+  @ApiOperation({ summary: 'Record a delivery attempt event (failed/retry note)' })
+  async recordDeliveryAttempt(
+    @Param('id') id: string,
+    @CurrentUser() user: RequestUser,
+    @Body('result') result: 'failed' | 'note',
+    @Body('reason') reason?: string,
+  ) {
+    return this.orderService.recordDeliveryAttempt(id, user, { result, reason });
+  }
+
+  @Patch(':id/handover')
+  @Roles('ADMIN', 'CASHIER', 'COURIER')
+  @ApiOperation({ summary: 'Handover in-transit delivery to next courier or release back to ready' })
+  async handoverDelivery(
+    @Param('id') id: string,
+    @CurrentUser() user: RequestUser,
+    @Body('nextCourierId') nextCourierId?: string,
+    @Body('reason') reason?: string,
+  ) {
+    return this.orderService.handoverDelivery(id, user, { nextCourierId, reason });
+  }
+
   @Patch(':id/mark-cash-received')
   @Roles('ADMIN', 'CASHIER', 'COURIER')
   async markCashReceived(

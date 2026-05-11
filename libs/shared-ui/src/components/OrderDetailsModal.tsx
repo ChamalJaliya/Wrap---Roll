@@ -5,6 +5,7 @@ import { Check, Copy } from 'lucide-react';
 import {
   formatPaymentCollectionDisplayLabel,
   formatPersistedDiscountCaption,
+  formatStaffPaymentMethodLabel,
   type OpsActivityEventRow,
   type QueueOrder,
   type SupportOrderDetails,
@@ -70,6 +71,22 @@ function hasCheckoutAbortedEvent(events: OpsActivityEventRow[]): boolean {
   return events.some(
     (ev) => ev.eventType === 'payment.checkout_aborted' || ev.eventType === 'online_checkout_aborted',
   );
+}
+
+function latestActorByRole(
+  events: OpsActivityEventRow[],
+  role: string,
+): { name: string; userId: string } | null {
+  const upper = role.toUpperCase();
+  for (const ev of events) {
+    const actorRole = String(ev.actor?.role ?? '').toUpperCase();
+    const name = String(ev.actor?.name ?? '').trim();
+    const userId = String(ev.actor?.userId ?? '').trim();
+    if (actorRole !== upper) continue;
+    if (!name && !userId) continue;
+    return { name: name || '-', userId: userId || '-' };
+  }
+  return null;
 }
 
 function CopyInline({
@@ -142,18 +159,32 @@ export function OrderDetailsModal({
   const resolvedAddress = details?.deliveryAddress || order.deliveryAddress || '-';
   const resolvedTable = details?.tableNumber || order.tableNumber || '-';
   const resolvedCourier = order.courierId ?? '-';
-  const resolvedCourierName =
+  const latestKitchenActor = latestActorByRole(paymentEvents, 'KITCHEN');
+  const latestCashierActor = latestActorByRole(paymentEvents, 'CASHIER');
+  const latestCourierActor = latestActorByRole(paymentEvents, 'COURIER');
+
+  const resolvedCourierNameRaw =
     (typeof detailsAny.courierName === 'string' && detailsAny.courierName.trim()) || '-';
+  const resolvedCourierName =
+    resolvedCourierNameRaw !== '-' ? resolvedCourierNameRaw : latestCourierActor?.name || '-';
+  const resolvedCourierRef = resolvedCourier !== '-' ? String(resolvedCourier) : latestCourierActor?.userId || '-';
   const resolvedKitchen = kitchenRef ? String(kitchenRef) : '-';
-  const resolvedKitchenName =
+  const resolvedKitchenNameRaw =
     (typeof detailsAny.kitchenName === 'string' && detailsAny.kitchenName.trim()) || '-';
+  const resolvedKitchenName =
+    resolvedKitchenNameRaw !== '-' ? resolvedKitchenNameRaw : latestKitchenActor?.name || '-';
+  const resolvedKitchenRef = resolvedKitchen !== '-' ? resolvedKitchen : latestKitchenActor?.userId || '-';
   const resolvedCashier = cashierRef
     ? String(cashierRef)
     : (details?.source ?? order.source)?.toString().startsWith('cashier_pos')
       ? 'POS'
       : '-';
-  const resolvedCashierName =
+  const resolvedCashierNameRaw =
     (typeof detailsAny.cashierName === 'string' && detailsAny.cashierName.trim()) || '-';
+  const resolvedCashierName =
+    resolvedCashierNameRaw !== '-' ? resolvedCashierNameRaw : latestCashierActor?.name || '-';
+  const resolvedCashierRef =
+    resolvedCashier !== '-' ? resolvedCashier : latestCashierActor?.userId || '-';
   const checkoutAborted = hasCheckoutAbortedEvent(paymentEvents);
   const discountCaption = formatPersistedDiscountCaption({
     discountCode: details?.discountCode ?? order.discountCode ?? null,
@@ -207,7 +238,7 @@ export function OrderDetailsModal({
             </p>
             <div className="mt-3 flex flex-wrap gap-2 text-xs">
               <span className="rounded-full bg-neutral-100 px-2 py-1 font-semibold text-neutral-700">
-                Payment {toTitleWords(details?.paymentMethod ?? order.paymentMethod ?? '-')}
+                Payment {formatStaffPaymentMethodLabel(details?.paymentMethod ?? order.paymentMethod ?? '-')}
               </span>
               <span className="rounded-full bg-emerald-100 px-2 py-1 font-semibold text-emerald-800">
                 {toTitleWords(resolvedPaymentCollection)}
@@ -293,25 +324,25 @@ export function OrderDetailsModal({
                   <p><strong>Table:</strong> {resolvedTable}</p>
                   <p>
                     <strong>Kitchen:</strong> {resolvedKitchenName}{' '}
-                    {resolvedKitchen !== '-' ? (
+                    {resolvedKitchenRef !== '-' ? (
                       <span className="text-[11px] text-neutral-400">
-                        ({shortRef(resolvedKitchen)})
+                        ({shortRef(resolvedKitchenRef)})
                       </span>
                     ) : null}
                   </p>
                   <p>
                     <strong>Cashier:</strong> {resolvedCashierName}{' '}
-                    {resolvedCashier !== '-' ? (
+                    {resolvedCashierRef !== '-' ? (
                       <span className="text-[11px] text-neutral-400">
-                        ({shortRef(resolvedCashier)})
+                        ({shortRef(resolvedCashierRef)})
                       </span>
                     ) : null}
                   </p>
                   <p>
                     <strong>Courier:</strong> {resolvedCourierName}{' '}
-                    {resolvedCourier !== '-' ? (
+                    {resolvedCourierRef !== '-' ? (
                       <span className="text-[11px] text-neutral-400">
-                        ({shortRef(resolvedCourier)})
+                        ({shortRef(resolvedCourierRef)})
                       </span>
                     ) : null}
                   </p>
@@ -326,7 +357,10 @@ export function OrderDetailsModal({
                   <p className="text-sm font-semibold text-neutral-800">Payment and totals</p>
                 </div>
                 <div className="space-y-1.5 text-sm text-neutral-700">
-                  <p><strong>Payment method:</strong> {details?.paymentMethod ?? order.paymentMethod ?? '-'}</p>
+                  <p>
+                    <strong>Payment method:</strong>{' '}
+                    {formatStaffPaymentMethodLabel(details?.paymentMethod ?? order.paymentMethod ?? '-')}
+                  </p>
                   <p><strong>Payment status:</strong> {details?.paymentStatus ?? order.paymentStatus ?? '-'}</p>
                   <p><strong>Total:</strong> {fmtMoney(details?.total ?? order.total)}</p>
                   <p><strong>Subtotal:</strong> {fmtMoney((details as any)?.subtotal ?? order.subtotal ?? 0)}</p>

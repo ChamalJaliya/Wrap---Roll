@@ -39,6 +39,80 @@ function shortId(id: string): string {
   return `${id.slice(0, 8)}…`;
 }
 
+function toMetaRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' ? (value as Record<string, unknown>) : null;
+}
+
+function titleWords(value: unknown): string {
+  return String(value ?? '')
+    .replace(/_/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(' ');
+}
+
+function humanActivitySummary(event: OpsActivityEventRow): string {
+  const meta = toMetaRecord(event.metadataJson);
+  const fallback = event.summary || formatActivityEventTypeLabel(event.eventType);
+  switch (event.eventType) {
+    case 'order.status_changed': {
+      const to = titleWords(meta?.toStatus ?? '');
+      const from = titleWords(meta?.fromStatus ?? '');
+      if (to && from) return `Order moved from ${from} to ${to}`;
+      if (to) return `Order moved to ${to}`;
+      return fallback;
+    }
+    case 'order.courier_assigned':
+      return 'Courier assigned and order moved to In Transit';
+    case 'order.payment_collected': {
+      const method = String(meta?.method ?? '').toUpperCase();
+      if (method) return `${method} payment collected`;
+      return 'Payment collected';
+    }
+    case 'order.created':
+      return 'Order placed';
+    case 'order.lines_replaced':
+      return 'Order items were updated';
+    case 'order.support_updated':
+      return 'Customer or fulfillment details were updated';
+    case 'order.delivery_attempt_failed':
+      return 'Delivery attempt failed (retry needed)';
+    case 'order.delivery_handover_released':
+      return 'Delivery was handed back to queue';
+    case 'order.delivery_handover_reassigned':
+      return 'Delivery was handed over to another courier';
+    default:
+      return fallback;
+  }
+}
+
+function humanEventTagLabel(eventType: string): string {
+  switch (eventType) {
+    case 'order.status_changed':
+      return 'Order stage updated';
+    case 'order.created':
+      return 'Order placed';
+    case 'order.payment_collected':
+      return 'Payment received';
+    case 'order.lines_replaced':
+      return 'Items updated';
+    case 'order.support_updated':
+      return 'Order details updated';
+    case 'order.courier_assigned':
+      return 'Courier assigned';
+    case 'order.delivery_attempt_failed':
+      return 'Delivery retry needed';
+    case 'order.delivery_handover_released':
+      return 'Delivery returned to queue';
+    case 'order.delivery_handover_reassigned':
+      return 'Delivery reassigned';
+    default:
+      return formatActivityEventTypeLabel(eventType);
+  }
+}
+
 function activityEventCardToneClass(event: OpsActivityEventRow): string {
   const { failure, systemSurface } = getActivityEventVisualHints(event);
   if (failure) {
@@ -155,7 +229,7 @@ export default function AdminActivityPage() {
     <PageStack>
       <PageHeader
         title="Activity Log"
-        description="See who did what across storefront, POS, kitchen, and admin. Filters below narrow the list; each card shows the story first, with technical IDs tucked under “Details”."
+        description="See a plain-language timeline of operations across storefront, POS, kitchen, delivery, and admin. Expand details only when you need the technical context."
       />
 
       <DataPanel>
@@ -206,10 +280,10 @@ export default function AdminActivityPage() {
                 </select>
               </label>
               <label className="space-y-1.5">
-                <span className="text-sm text-foreground">Event name contains</span>
+                <span className="text-sm text-foreground">Event keyword</span>
                 <input
                   className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm"
-                  placeholder="e.g. payment, courier"
+                  placeholder="e.g. payment, courier, status"
                   value={eventType}
                   onChange={(e) => setEventType(e.target.value)}
                 />
@@ -238,10 +312,10 @@ export default function AdminActivityPage() {
                 />
               </label>
               <label className="space-y-1.5 sm:col-span-2 lg:col-span-1">
-                <span className="text-sm text-foreground">Search</span>
+                <span className="text-sm text-foreground">Search people/orders</span>
                 <input
                   className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm"
-                  placeholder="Name, summary, or ID…"
+                  placeholder="Name, activity text, or order ID…"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                 />
@@ -329,10 +403,12 @@ export default function AdminActivityPage() {
                             </span>
                           ) : null}
                           <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                            {formatActivityEventTypeLabel(event.eventType)}
+                            {humanEventTagLabel(event.eventType)}
                           </span>
                         </div>
-                        <h3 className="text-base font-semibold leading-snug text-foreground">{event.summary}</h3>
+                        <h3 className="text-base font-semibold leading-snug text-foreground">
+                          {humanActivitySummary(event)}
+                        </h3>
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
                           <span className="inline-flex items-center gap-1.5">
                             <User className="h-4 w-4 shrink-0 opacity-70" aria-hidden />
@@ -362,16 +438,22 @@ export default function AdminActivityPage() {
                         </div>
                         <details className="group text-sm">
                           <summary className="cursor-pointer list-none text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">
-                            Technical details
+                            System details
                           </summary>
                           <dl className="mt-2 space-y-1 rounded-lg bg-muted/50 p-3 font-mono text-xs text-muted-foreground">
                             <div>
-                              <dt className="inline text-foreground/80">eventType:</dt>{' '}
-                              <dd className="inline">{event.eventType}</dd>
+                              <dt className="inline text-foreground/80">Action:</dt>{' '}
+                              <dd className="inline">{humanActivitySummary(event)}</dd>
                             </div>
                             <div>
-                              <dt className="inline text-foreground/80">entityId:</dt>{' '}
+                              <dt className="inline text-foreground/80">
+                                {formatActivityEntityType(event.entityType)} ID:
+                              </dt>{' '}
                               <dd className="inline break-all">{event.entityId}</dd>
+                            </div>
+                            <div>
+                              <dt className="inline text-foreground/80">System code:</dt>{' '}
+                              <dd className="inline">{event.eventType}</dd>
                             </div>
                           </dl>
                         </details>
@@ -422,7 +504,9 @@ export default function AdminActivityPage() {
                   key={name}
                   className="flex items-center justify-between gap-2 rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-sm"
                 >
-                  <span className="min-w-0 font-medium leading-tight text-foreground">{formatActivityEventTypeLabel(name)}</span>
+                  <span className="min-w-0 font-medium leading-tight text-foreground">
+                    {humanEventTagLabel(name)}
+                  </span>
                   <span className="shrink-0 rounded-full bg-background px-2 py-0.5 text-xs font-semibold tabular-nums text-muted-foreground">
                     {count}
                   </span>

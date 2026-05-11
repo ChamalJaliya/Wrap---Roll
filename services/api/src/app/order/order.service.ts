@@ -3010,6 +3010,134 @@ export class OrderService {
     return updated;
   }
 
+  async recordDeliveryAttempt(
+    orderId: string,
+    actor: RequestUser,
+    body: { result: 'failed' | 'note'; reason?: string },
+  ): Promise<{ ok: true }> {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) throw new NotFoundException('Order not found');
+    if (order.fulfillmentType !== 'delivery') {
+      throw new BadRequestException('Delivery attempt events only apply to delivery orders.');
+    }
+    if (order.status !== 'in_transit') {
+      throw new BadRequestException('Delivery attempt can only be recorded while in_transit.');
+    }
+    if (actor.role === 'COURIER') {
+      const assigned = String(order.courierId ?? '').trim();
+      if (!assigned || assigned !== String(actor.sub ?? '').trim()) {
+        throw new ForbiddenException('Only the assigned courier can record this delivery attempt.');
+      }
+    }
+    const reason = String(body.reason ?? '').trim();
+    const note =
+      reason.length > 0
+        ? reason
+        : body.result === 'failed'
+          ? 'Customer unreachable / delivery attempt failed'
+          : 'Courier note';
+    await this.txPaymentSidecar(this.prisma).paymentEvent.create({
+      data: {
+        orderId,
+        eventType: body.result === 'failed' ? 'delivery_attempt_failed' : 'delivery_attempt_note',
+        actorRole: actor.role,
+        actorUserId: actor.sub,
+        note,
+        metadataJson: {
+          result: body.result,
+        },
+      },
+    });
+    await this.recordOpsActivity({
+      entityType: 'order',
+      entityId: orderId,
+      eventType:
+        body.result === 'failed' ? 'order.delivery_attempt_failed' : 'order.delivery_attempt_note',
+      summary:
+        body.result === 'failed'
+          ? 'Delivery attempt failed; retry required'
+          : 'Courier recorded delivery note',
+      actor,
+      metadataJson: {
+        reason: note,
+        status: order.status,
+        courierId: order.courierId ?? null,
+      },
+    });
+    this.notifyQueueProjectionChanged({ orderId, type: 'order.delivery_attempt' });
+    return { ok: true };
+  }
+
+  async handoverDelivery(
+    orderId: string,
+    actor: RequestUser,
+    body: { nextCourierId?: string; reason?: string },
+  ): Promise<any> {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) throw new NotFoundException('Order not found');
+    if (order.fulfillmentType !== 'delivery') {
+      throw new BadRequestException('Delivery handover only applies to delivery orders.');
+    }
+    if (order.status !== 'in_transit') {
+      throw new BadRequestException('Delivery handover only applies to in_transit orders.');
+    }
+    if (actor.role === 'COURIER') {
+      const assigned = String(order.courierId ?? '').trim();
+      if (!assigned || assigned !== String(actor.sub ?? '').trim()) {
+        throw new ForbiddenException('Only the assigned courier can request handover.');
+      }
+    }
+    const reason = String(body.reason ?? '').trim() || 'Courier handover';
+    const nextCourierId = String(body.nextCourierId ?? '').trim();
+    const isPrivileged = actor.role === 'ADMIN' || actor.role === 'CASHIER';
+
+    if (nextCourierId) {
+      if (!isPrivileged) {
+        throw new ForbiddenException('Only ADMIN/CASHIER can directly reassign to another courier.');
+      }
+      await this.staffService.validateCourier(nextCourierId);
+      const updated = await this.prisma.order.update({
+        where: { id: orderId },
+        data: { courierId: nextCourierId },
+        include: { items: true },
+      });
+      await this.recordOpsActivity({
+        entityType: 'order',
+        entityId: orderId,
+        eventType: 'order.delivery_handover_reassigned',
+        summary: 'Delivery handover: reassigned to next courier',
+        actor,
+        metadataJson: {
+          fromCourierId: order.courierId ?? null,
+          toCourierId: nextCourierId,
+          reason,
+        },
+      });
+      this.notifyQueueProjectionChanged({ orderId, type: 'order.delivery_handover_reassigned' });
+      return updated;
+    }
+
+    const released = await this.prisma.order.update({
+      where: { id: orderId },
+      data: { status: 'ready', courierId: null },
+      include: { items: true },
+    });
+    await this.recordOpsActivity({
+      entityType: 'order',
+      entityId: orderId,
+      eventType: 'order.delivery_handover_released',
+      summary: 'Delivery handover: released back to ready queue',
+      actor,
+      metadataJson: {
+        fromCourierId: order.courierId ?? null,
+        toCourierId: null,
+        reason,
+      },
+    });
+    this.notifyQueueProjectionChanged({ orderId, type: 'order.delivery_handover_released' });
+    return released;
+  }
+
   /**
    * Queue-driven payment orchestration entrypoint (webhook/reconciliation paid events).
    * Called by `PaymentService.processQueueJob`.

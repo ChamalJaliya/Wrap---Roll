@@ -93,3 +93,10 @@
  GET / 200 in 195ms (compile: 68ms, render: 127ms)
 ✓ Compiled in 697ms
  GET / 200 in 64ms (compile: 23ms, render: 41ms)
+ GET / 200 in 158ms (compile: 66ms, render: 91ms)
+
+
+
+ NX   Successfully ran target dev for project kitchen
+
+

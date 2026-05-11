@@ -1,15 +1,16 @@
 
-> wrap-and-roll@0.0.0 start:mobile
-> npm run start -w mobile
+> wrap-and-roll@0.0.0 start:mobile:clear
+> npm run start:clear -w mobile
 
 
-> mobile@1.0.0 start
-> expo start
+> mobile@1.0.0 start:clear
+> expo start --clear
 
 env: load .env
 env: export EXPO_PUBLIC_SUPABASE_URL EXPO_PUBLIC_SUPABASE_ANON_KEY EXPO_PUBLIC_API_URL
 Starting project at /Users/chamal/Desktop/Wrap & Roll/apps/mobile
 Starting Metro Bundler
+warning: Bundler cache is empty, rebuilding (this may take a minute)
 The following packages should be updated for best compatibility with the installed expo version:
   expo@54.0.33 - expected version: ~54.0.34
   expo-haptics@55.0.14 - expected version: ~15.0.8
@@ -20,3 +21,46 @@ The following packages should be updated for best compatibility with the install
 Your project may not work correctly until you install the expected versions of the packages.
 Waiting on http://localhost:8081
 Logs for your project will appear below.
+iOS apps/mobile/node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+| (node:53082) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:53085) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:53083) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:53088) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:53087) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:53086) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:53084) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+ WARN  The package /Users/chamal/Desktop/Wrap & Roll/node_modules/zustand contains an invalid package.json configuration. Consider raising this issue with the package maintainer(s).
+Reason: The resolution for "/Users/chamal/Desktop/Wrap & Roll/node_modules/zustand/middleware.js" defined in "exports" is /Users/chamal/Desktop/Wrap & Roll/node_modules/zustand/middleware.js.js, however this file does not exist. Falling back to file-based resolution.
+iOS apps/mobile/node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓░░░░░ 69.7% ( 962/1166)
+iOS Bundled 6139ms apps/mobile/node_modules/expo-router/entry.js (2022 modules)
+iOS apps/mobile/node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+iOS apps/mobile/node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓░░░ 84.4% (1380/1502)
+iOS Bundled 5314ms apps/mobile/node_modules/expo-router/entry.js (2010 modules)
+ ERROR  [AuthApiError: Invalid Refresh Token: Refresh Token Not Found] 
+
+Call Stack
+  construct (apps/mobile/<native>)
+  apply (apps/mobile/<native>)
+  _construct (node_modules/@babel/runtime/helpers/construct.js:4:65)
+  Wrapper (node_modules/@babel/runtime/helpers/wrapNativeSuper.js:15:23)
+  construct (apps/mobile/<native>)
+  _callSuper (node_modules/@babel/runtime/helpers/callSuper.js:5:108)
+  AuthError#constructor (node_modules/@supabase/auth-js/dist/main/lib/errors.js:23:9)
+  construct (apps/mobile/<native>)
+  _callSuper (node_modules/@babel/runtime/helpers/callSuper.js:5:108)
+  AuthApiError#constructor (node_modules/@supabase/auth-js/dist/main/lib/errors.js:46:9)
+  handleError (node_modules/@supabase/auth-js/dist/main/lib/fetch.js:66:36)
+  next (apps/mobile/<native>)
+  asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+  _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:27)
+  tryCallOne (address at (apps/mobile/InternalBytecode.js:1:1180)
+  anonymous (address at (apps/mobile/InternalBytecode.js:1:1874)
+iOS apps/mobile/node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+iOS Bundled 72ms apps/mobile/node_modules/expo-router/entry.js (1 module)

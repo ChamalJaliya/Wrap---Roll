@@ -55,6 +55,7 @@ export {
   formatPaymentCollectionLabel,
   formatPaymentCollectionDisplayLabel,
   formatPaymentStatusDisplayLabel,
+  formatStaffPaymentMethodLabel,
   type QueueOrderStatus,
   type QueueMoveBlockedReason,
   type QueueOrderActions,

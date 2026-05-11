@@ -9516,3 +9516,251 @@
 (node:44104) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
  GET /api/nest/orders/queue?status=placed,paid,in_kitchen,ready,in_transit,delivered,cancelled,voided,refunded&date=2026-05-10 200 in 1035ms (compile: 4ms, render: 1031ms)
+ GET /auth/signin?returnTo=%2F 200 in 784ms (compile: 390ms, render: 394ms)
+ GET /api/auth/csrf 200 in 17ms (compile: 11ms, render: 6ms)
+ POST /api/auth/signin 200 in 391ms (compile: 7ms, render: 384ms)
+ GET / 200 in 27ms (compile: 10ms, render: 18ms)
+(node:63833) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/auth/session 200 in 150ms (compile: 3ms, render: 147ms)
+ GET /api/nest/settings 200 in 200ms (compile: 2ms, render: 198ms)
+ GET /api/auth/session 200 in 179ms (compile: 1255µs, render: 178ms)
+ GET /api/nest/menu?limit=100 200 in 549ms (compile: 5ms, render: 544ms)
+(node:63839) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/nest/menu?limit=100 200 in 322ms (compile: 3ms, render: 319ms)
+ GET /api/nest/settings 200 in 875ms (compile: 7ms, render: 868ms)
+(node:64092) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/nest/menu/a0a2096e-b768-4926-a8c3-cad2a6141dad/info 200 in 798ms (compile: 14ms, render: 783ms)
+(node:64397) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/auth/session 200 in 263ms (compile: 4ms, render: 259ms)
+ GET /api/nest/orders/reconciliation/summary?date=2026-05-10 200 in 774ms (compile: 2000µs, render: 772ms)
+ GET /api/nest/orders/queue?status=placed,paid,in_kitchen,ready,in_transit,delivered,cancelled,voided,refunded&date=2026-05-10 200 in 1034ms (compile: 5ms, render: 1028ms)
+(node:64404) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/nest/orders/support/7567779e-b5ae-4ea6-90b4-d556cd91a641 200 in 796ms (compile: 6ms, render: 790ms)
+ GET /api/auth/session 200 in 306ms (compile: 2ms, render: 304ms)
+(node:64440) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/nest/orders/queue?status=placed,paid,in_kitchen,ready,in_transit,delivered,cancelled,voided,refunded&date=2026-05-10 200 in 1096ms (compile: 5ms, render: 1091ms)
+(node:64463) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/auth/session 200 in 182ms (compile: 845µs, render: 181ms)
+ GET /api/nest/orders/support/7567779e-b5ae-4ea6-90b4-d556cd91a641 200 in 793ms (compile: 3ms, render: 790ms)
+(node:64475) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/nest/orders/queue?status=placed,paid,in_kitchen,ready,in_transit,delivered,cancelled,voided,refunded&date=2026-05-10 200 in 1058ms (compile: 4ms, render: 1054ms)
+(node:64486) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/nest/orders/support/6827a247-b7eb-4441-93c6-a92828be576e 200 in 801ms (compile: 3ms, render: 798ms)
+(node:64492) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/nest/orders/support/6827a247-b7eb-4441-93c6-a92828be576e 200 in 892ms (compile: 4ms, render: 888ms)
+ GET /api/auth/session 200 in 234ms (compile: 3ms, render: 232ms)
+(node:64510) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/nest/orders/queue?status=placed,paid,in_kitchen,ready,in_transit,delivered,cancelled,voided,refunded&date=2026-05-10 200 in 1023ms (compile: 5ms, render: 1018ms)
+ GET /api/auth/session 200 in 228ms (compile: 1752µs, render: 226ms)
+(node:64542) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/nest/orders/queue?status=placed,paid,in_kitchen,ready,in_transit,delivered,cancelled,voided,refunded&date=2026-05-10 200 in 1292ms (compile: 4ms, render: 1288ms)
+(node:64554) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/nest/orders/support/7567779e-b5ae-4ea6-90b4-d556cd91a641 200 in 838ms (compile: 7ms, render: 831ms)
+(node:64560) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/auth/session 200 in 211ms (compile: 760µs, render: 211ms)
+ GET /api/nest/orders/support/7567779e-b5ae-4ea6-90b4-d556cd91a641 200 in 745ms (compile: 4ms, render: 741ms)
+(node:64578) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/nest/orders/queue?status=placed,paid,in_kitchen,ready,in_transit,delivered,cancelled,voided,refunded&date=2026-05-10 200 in 954ms (compile: 5ms, render: 949ms)
+ GET /api/auth/session 200 in 194ms (compile: 2ms, render: 192ms)
+(node:64611) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/nest/orders/queue?status=placed,paid,in_kitchen,ready,in_transit,delivered,cancelled,voided,refunded&date=2026-05-10 200 in 1109ms (compile: 5ms, render: 1104ms)
+ GET /api/auth/session 200 in 219ms (compile: 3ms, render: 216ms)
+(node:64651) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/nest/orders/queue?status=placed,paid,in_kitchen,ready,in_transit,delivered,cancelled,voided,refunded&date=2026-05-10 200 in 955ms (compile: 8ms, render: 947ms)
+ GET /api/auth/session 200 in 246ms (compile: 2ms, render: 244ms)
+(node:64683) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/nest/orders/queue?status=placed,paid,in_kitchen,ready,in_transit,delivered,cancelled,voided,refunded&date=2026-05-10 200 in 1056ms (compile: 1191µs, render: 1054ms)
+ GET /api/auth/session 200 in 263ms (compile: 3ms, render: 261ms)
+ PATCH /api/nest/orders/7567779e-b5ae-4ea6-90b4-d556cd91a641/mark-payment-received 200 in 2.1s (compile: 5ms, render: 2.1s)
+(node:64695) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/nest/orders/reconciliation/summary?date=2026-05-10 200 in 759ms (compile: 16ms, render: 743ms)
+ GET /api/nest/orders/support/7567779e-b5ae-4ea6-90b4-d556cd91a641 200 in 1042ms (compile: 17ms, render: 1025ms)
+ GET /api/nest/orders/queue?status=placed,paid,in_kitchen,ready,in_transit,delivered,cancelled,voided,refunded&date=2026-05-10 200 in 1649ms (compile: 14ms, render: 1635ms)
+(node:64718) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/auth/session 200 in 251ms (compile: 675µs, render: 251ms)
+ GET /api/nest/orders/queue?status=placed,paid,in_kitchen,ready,in_transit,delivered,cancelled,voided,refunded&date=2026-05-10 200 in 1036ms (compile: 3ms, render: 1033ms)
+(node:64744) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/nest/orders/support/7567779e-b5ae-4ea6-90b4-d556cd91a641 200 in 895ms (compile: 5ms, render: 890ms)
+(node:64751) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:64757) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/auth/session 200 in 567ms (compile: 743µs, render: 566ms)
+ GET /api/nest/orders/queue?status=placed,paid,in_kitchen,ready,in_transit,delivered,cancelled,voided,refunded&date=2026-05-10 200 in 1065ms (compile: 8ms, render: 1057ms)
+ GET /api/nest/orders/support/6827a247-b7eb-4441-93c6-a92828be576e 200 in 828ms (compile: 3ms, render: 825ms)
+(node:64784) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/auth/session 200 in 412ms (compile: 716µs, render: 411ms)
+ GET /api/nest/orders/queue?status=placed,paid,in_kitchen,ready,in_transit,delivered,cancelled,voided,refunded&date=2026-05-10 200 in 1260ms (compile: 5ms, render: 1256ms)
+(node:64802) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/nest/orders/support/6827a247-b7eb-4441-93c6-a92828be576e 200 in 840ms (compile: 3ms, render: 837ms)
+(node:64808) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/nest/settings 200 in 141ms (compile: 4ms, render: 137ms)
+(node:64987) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/auth/session 200 in 296ms (compile: 4ms, render: 291ms)
+ GET /api/nest/orders/queue?status=placed,paid,in_kitchen,ready,in_transit,delivered,cancelled,voided,refunded&date=2026-05-10 200 in 1174ms (compile: 3ms, render: 1170ms)
+(node:64993) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/nest/orders/queue?status=placed,paid,in_kitchen,ready,in_transit,delivered,cancelled,voided,refunded&date=2026-05-10 200 in 1088ms (compile: 4ms, render: 1084ms)
+ GET /api/auth/session 200 in 302ms (compile: 3ms, render: 299ms)
+(node:65026) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/nest/orders/queue?status=placed,paid,in_kitchen,ready,in_transit,delivered,cancelled,voided,refunded&date=2026-05-10 200 in 1162ms (compile: 4ms, render: 1158ms)
+(node:65033) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/nest/orders/queue?status=placed,paid,in_kitchen,ready,in_transit,delivered,cancelled,voided,refunded&date=2026-05-10 200 in 1021ms (compile: 4ms, render: 1018ms)
+ GET /api/auth/session 200 in 209ms (compile: 3ms, render: 206ms)
+(node:65066) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/nest/orders/queue?status=placed,paid,in_kitchen,ready,in_transit,delivered,cancelled,voided,refunded&date=2026-05-10 200 in 1145ms (compile: 5ms, render: 1140ms)
+ GET /api/auth/session 200 in 239ms (compile: 3ms, render: 236ms)
+(node:65099) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/nest/orders/queue?status=placed,paid,in_kitchen,ready,in_transit,delivered,cancelled,voided,refunded&date=2026-05-10 200 in 1133ms (compile: 4ms, render: 1128ms)
+ GET /api/auth/session 200 in 207ms (compile: 3ms, render: 204ms)
+(node:65132) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:65138) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/nest/orders/queue?status=placed,paid,in_kitchen,ready,in_transit,delivered,cancelled,voided,refunded&date=2026-05-10 200 in 1147ms (compile: 5ms, render: 1143ms)
+(node:65141) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/nest/orders/reconciliation/summary?date=2026-05-10 200 in 808ms (compile: 1818µs, render: 806ms)
+ GET /api/nest/orders/queue?status=placed,paid,in_kitchen,ready,in_transit,delivered,cancelled,voided,refunded&date=2026-05-10 200 in 965ms (compile: 1465µs, render: 964ms)
+(node:65152) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/auth/session 200 in 205ms (compile: 1071µs, render: 204ms)
+ PATCH /api/nest/orders/7567779e-b5ae-4ea6-90b4-d556cd91a641/status 200 in 2.5s (compile: 5ms, render: 2.5s)
+(node:65168) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/nest/orders/queue?status=placed,paid,in_kitchen,ready,in_transit,delivered,cancelled,voided,refunded&date=2026-05-10 200 in 1366ms (compile: 6ms, render: 1360ms)
+(node:65180) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/auth/session 200 in 200ms (compile: 765µs, render: 199ms)
+ GET /api/nest/orders/queue?status=placed,paid,in_kitchen,ready,in_transit,delivered,cancelled,voided,refunded&date=2026-05-10 200 in 954ms (compile: 4ms, render: 951ms)
+(node:65209) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/nest/orders/queue?status=placed,paid,in_kitchen,ready,in_transit,delivered,cancelled,voided,refunded&date=2026-05-10 200 in 1014ms (compile: 6ms, render: 1009ms)
+ GET /api/auth/session 200 in 229ms (compile: 1551µs, render: 227ms)
+(node:65252) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/auth/session 200 in 239ms (compile: 16ms, render: 223ms)
+ GET /api/nest/orders/queue?status=placed,paid,in_kitchen,ready,in_transit,delivered,cancelled,voided,refunded&date=2026-05-10 200 in 953ms (compile: 5ms, render: 947ms)
+(node:65292) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/auth/session 200 in 243ms (compile: 2ms, render: 240ms)
+ GET /api/nest/orders/queue?status=placed,paid,in_kitchen,ready,in_transit,delivered,cancelled,voided,refunded&date=2026-05-10 200 in 1095ms (compile: 3ms, render: 1092ms)
+(node:65325) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/auth/session 200 in 207ms (compile: 1307µs, render: 206ms)
+ GET /api/nest/orders/queue?status=placed,paid,in_kitchen,ready,in_transit,delivered,cancelled,voided,refunded&date=2026-05-10 200 in 1286ms (compile: 4ms, render: 1282ms)
+(node:65359) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/auth/session 200 in 252ms (compile: 1094µs, render: 251ms)
+ GET /api/nest/orders/queue?status=placed,paid,in_kitchen,ready,in_transit,delivered,cancelled,voided,refunded&date=2026-05-10 200 in 1053ms (compile: 1714µs, render: 1051ms)
+(node:65397) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/auth/session 200 in 236ms (compile: 39ms, render: 196ms)
+ GET /api/nest/orders/queue?status=placed,paid,in_kitchen,ready,in_transit,delivered,cancelled,voided,refunded&date=2026-05-10 200 in 995ms (compile: 4ms, render: 991ms)
+(node:65430) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/auth/session 200 in 214ms (compile: 3ms, render: 211ms)
+ GET /api/nest/orders/queue?status=placed,paid,in_kitchen,ready,in_transit,delivered,cancelled,voided,refunded&date=2026-05-10 200 in 978ms (compile: 4ms, render: 974ms)
+(node:65466) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/auth/session 200 in 221ms (compile: 4ms, render: 217ms)
+ GET /api/nest/orders/queue?status=placed,paid,in_kitchen,ready,in_transit,delivered,cancelled,voided,refunded&date=2026-05-10 200 in 1352ms (compile: 6ms, render: 1346ms)
+(node:65500) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/auth/session 200 in 287ms (compile: 3ms, render: 284ms)
+ GET /api/nest/orders/queue?status=placed,paid,in_kitchen,ready,in_transit,delivered,cancelled,voided,refunded&date=2026-05-10 200 in 1330ms (compile: 4ms, render: 1326ms)
+(node:65533) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/auth/session 200 in 324ms (compile: 3ms, render: 321ms)
+ GET /api/nest/orders/queue?status=placed,paid,in_kitchen,ready,in_transit,delivered,cancelled,voided,refunded&date=2026-05-10 200 in 1322ms (compile: 3ms, render: 1318ms)
+(node:65566) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/auth/session 200 in 218ms (compile: 1681µs, render: 216ms)
+ GET /api/nest/orders/queue?status=placed,paid,in_kitchen,ready,in_transit,delivered,cancelled,voided,refunded&date=2026-05-10 200 in 1114ms (compile: 4ms, render: 1109ms)
+(node:65600) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/auth/session 200 in 290ms (compile: 5ms, render: 285ms)
+ GET /api/nest/orders/queue?status=placed,paid,in_kitchen,ready,in_transit,delivered,cancelled,voided,refunded&date=2026-05-10 200 in 1318ms (compile: 6ms, render: 1312ms)
+(node:65633) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/auth/session 200 in 254ms (compile: 2ms, render: 251ms)
+ GET /api/nest/orders/queue?status=placed,paid,in_kitchen,ready,in_transit,delivered,cancelled,voided,refunded&date=2026-05-10 200 in 1128ms (compile: 5ms, render: 1123ms)
+ GET /api/auth/session 200 in 203ms (compile: 3ms, render: 200ms)
+(node:65667) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/nest/orders/queue?status=placed,paid,in_kitchen,ready,in_transit,delivered,cancelled,voided,refunded&date=2026-05-10 200 in 1046ms (compile: 5ms, render: 1041ms)
+ GET /api/auth/session 200 in 309ms (compile: 3ms, render: 306ms)
+(node:65700) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/nest/orders/queue?status=placed,paid,in_kitchen,ready,in_transit,delivered,cancelled,voided,refunded&date=2026-05-10 200 in 1431ms (compile: 4ms, render: 1426ms)
+ GET /api/auth/session 200 in 264ms (compile: 3ms, render: 261ms)
+(node:65738) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/nest/orders/queue?status=placed,paid,in_kitchen,ready,in_transit,delivered,cancelled,voided,refunded&date=2026-05-10 200 in 1005ms (compile: 4ms, render: 1000ms)
+(node:65761) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/auth/session 200 in 413ms (compile: 956µs, render: 412ms)
+(node:65772) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ PATCH /api/nest/orders/7567779e-b5ae-4ea6-90b4-d556cd91a641/status 200 in 2.1s (compile: 4ms, render: 2.1s)
+ GET /api/nest/orders/queue?status=placed,paid,in_kitchen,ready,in_transit,delivered,cancelled,voided,refunded&date=2026-05-10 200 in 979ms (compile: 4ms, render: 974ms)
+(node:65778) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/nest/orders/queue?status=placed,paid,in_kitchen,ready,in_transit,delivered,cancelled,voided,refunded&date=2026-05-10 200 in 948ms (compile: 4ms, render: 944ms)
+ GET /api/auth/session 200 in 308ms (compile: 4ms, render: 304ms)
+(node:65806) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/nest/orders/queue?status=placed,paid,in_kitchen,ready,in_transit,delivered,cancelled,voided,refunded&date=2026-05-10 200 in 1127ms (compile: 5ms, render: 1123ms)
+ GET /api/auth/session 200 in 339ms (compile: 4ms, render: 335ms)
+(node:65839) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/nest/orders/queue?status=placed,paid,in_kitchen,ready,in_transit,delivered,cancelled,voided,refunded&date=2026-05-10 200 in 943ms (compile: 5ms, render: 938ms)
+ GET /api/auth/session 200 in 229ms (compile: 1223µs, render: 228ms)
+(node:65868) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/nest/customer/admin/list?page=1&limit=24&sortBy=name&sortDir=asc 200 in 1241ms (compile: 3ms, render: 1239ms)
+(node:66365) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/auth/session 200 in 252ms (compile: 10ms, render: 242ms)
+ GET /api/nest/orders/reconciliation/summary?date=2026-05-10 200 in 1028ms (compile: 5ms, render: 1022ms)
+ GET /api/nest/orders/queue?status=placed,paid,in_kitchen,ready,in_transit,delivered,cancelled,voided,refunded&date=2026-05-10 200 in 1169ms (compile: 3ms, render: 1165ms)
+(node:66393) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET /api/auth/session 200 in 205ms (compile: 3ms, render: 202ms)
+ GET /api/nest/orders/reconciliation/summary?date=2026-05-10 200 in 685ms (compile: 6ms, render: 679ms)
+ GET /api/nest/orders/queue?status=placed,paid,in_kitchen,ready,in_transit,delivered,cancelled,voided,refunded&date=2026-05-10 200 in 1097ms (compile: 3ms, render: 1094ms)
+
+
+
+ NX   Successfully ran target dev for project cashier
+
+

@@ -136,6 +136,11 @@ export function CardCollectConfirmDialog({
       toast.error('Confirm that the terminal approved this amount.');
       return;
     }
+    const ref = terminalRef.trim();
+    if (!ref) {
+      toast.error('Enter terminal/auth reference before continuing.');
+      return;
+    }
     if (needSupervisorUi && !supervisorReady) {
       toast.error('Verify supervisor email and PIN first.');
       return;
@@ -150,8 +155,7 @@ export function CardCollectConfirmDialog({
       }
       return;
     }
-    const noteParts = ['Collected via card at cashier handoff'];
-    const ref = terminalRef.trim();
+    const noteParts = ['Collected via card terminal at cashier handoff'];
     if (ref) noteParts.push(`Terminal ref: ${ref}`);
 
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -172,7 +176,7 @@ export function CardCollectConfirmDialog({
       });
       if (!res.ok) {
         const err = (await res.json().catch(() => ({}))) as { message?: string };
-        toast.error(String(err?.message ?? 'Could not record card payment'));
+        toast.error(String(err?.message ?? 'Could not record card terminal payment'));
         return;
       }
       const body = await res.json().catch(() => null);
@@ -196,7 +200,7 @@ export function CardCollectConfirmDialog({
               <CreditCard className="h-6 w-6" aria-hidden />
             </span>
             <span className="leading-tight">
-              {isCheckout ? 'Confirm card (Pay now)' : 'Record card payment'}
+              {isCheckout ? 'Confirm card terminal (Pay now)' : 'Record card terminal payment'}
             </span>
           </DialogTitle>
           <DialogDescription className="text-left text-base leading-snug text-muted-foreground">
@@ -240,16 +244,19 @@ export function CardCollectConfirmDialog({
 
           <div className="grid gap-2">
             <Label htmlFor="card-terminal-ref" className="text-xs font-semibold">
-              Terminal / auth reference (optional)
+              Terminal / auth reference (required)
             </Label>
             <Input
               id="card-terminal-ref"
               value={terminalRef}
               onChange={(e) => setTerminalRef(e.target.value)}
-              placeholder="e.g. auth code, batch ID — helps audits"
+              placeholder="e.g. auth code, batch ID"
               className="font-mono text-sm"
               autoComplete="off"
             />
+            <p className="text-[11px] text-muted-foreground">
+              Required for cashier audit trail and reconciliation.
+            </p>
           </div>
 
           {needSupervisorUi ? (
@@ -308,7 +315,7 @@ export function CardCollectConfirmDialog({
             </div>
           ) : requireSupervisorElevation && bypassSupervisorAsAdmin ? (
             <p className="text-xs text-muted-foreground">
-              Admin session — supervisor PIN is not required to record card payment.
+              Admin session — supervisor PIN is not required to record card terminal payment.
             </p>
           ) : null}
 
@@ -327,6 +334,7 @@ export function CardCollectConfirmDialog({
               disabled={
                 busy ||
                 !terminalApproved ||
+                !terminalRef.trim() ||
                 (needSupervisorUi && (!supervisorReady || !isOnline))
               }
               onClick={() => void recordPayment()}
