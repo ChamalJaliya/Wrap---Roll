@@ -202,4 +202,19 @@ export class ActivityService {
     const page = await this.listGlobal({ ...query, cursor: null });
     return page.items;
   }
+
+  /** Count events strictly before `cutoff` (same predicate as {@link purgeBefore}). */
+  async countBefore(cutoff: Date): Promise<number> {
+    return this.prisma.opsActivityEvent.count({
+      where: { createdAt: { lt: cutoff } },
+    });
+  }
+
+  /** Hard-delete all ops activity events with `createdAt` strictly before `cutoff`. */
+  async purgeBefore(cutoff: Date): Promise<{ deleted: number }> {
+    const result = await this.prisma.opsActivityEvent.deleteMany({
+      where: { createdAt: { lt: cutoff } },
+    });
+    return { deleted: result.count };
+  }
 }

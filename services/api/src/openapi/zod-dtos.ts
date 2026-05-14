@@ -16,6 +16,9 @@ import {
   CreateWasteEntryInputSchema,
   CreateStockAdjustmentInputSchema,
   CreateOverheadCostEntryInputSchema,
+  CreateMenuItemReviewBodySchema,
+  CreateMenuItemReviewReplyBodySchema,
+  AdminPatchMenuItemReviewBodySchema,
 } from '@wrap-roll/contracts';
 
 export const ReplaceOrderLineItemsBodyDto = createZodDto(ReplaceOrderLineItemsBodySchema);
@@ -127,6 +130,10 @@ export class AdminCouponUpdateBodyDto extends createZodDto(AdminCouponUpdateBody
 
 export class CustomerProfileUpdateBodyDto extends createZodDto(CustomerProfileUpdateSchema) {}
 export class CustomerAdminPatchBodyDto extends createZodDto(CustomerAdminPatchSchema) {}
+
+export class CreateMenuItemReviewBodyDto extends createZodDto(CreateMenuItemReviewBodySchema) {}
+export class CreateMenuItemReviewReplyBodyDto extends createZodDto(CreateMenuItemReviewReplyBodySchema) {}
+export class AdminPatchMenuItemReviewBodyDto extends createZodDto(AdminPatchMenuItemReviewBodySchema) {}
 
 const staffRole = z.enum(['ADMIN', 'CASHIER', 'KITCHEN', 'COURIER']);
 

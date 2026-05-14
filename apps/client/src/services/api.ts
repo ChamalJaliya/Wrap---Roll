@@ -4,7 +4,9 @@ import {
   type Customer,
   type CustomerAddress,
   type CustomerHistoryOrder,
+  type MenuItemReviewSummary,
   type PublicBusinessSettings,
+  type PublicMenuItemReviewList,
   type SavedPaymentToken,
 } from '@wrap-roll/contracts';
 import { getBrowserSupabase } from '@/lib/supabase-browser';
@@ -93,6 +95,17 @@ export const MenuService = {
     nutritionTags: Array<{ key: string; label: string }>;
   }> => {
     const { data } = await api.get(`/menu/${id}/info`);
+    return data;
+  },
+  getMenuItemReviewSummary: async (id: string): Promise<MenuItemReviewSummary> => {
+    const { data } = await api.get(`/menu/${encodeURIComponent(id)}/reviews/summary`);
+    return data;
+  },
+  getMenuItemPublicReviews: async (
+    id: string,
+    params?: { page?: number; limit?: number },
+  ): Promise<PublicMenuItemReviewList> => {
+    const { data } = await api.get(`/menu/${encodeURIComponent(id)}/reviews`, { params });
     return data;
   },
 };
@@ -226,6 +239,52 @@ export const CustomerApiService = {
   saveCard: async (payload: SavedPaymentToken): Promise<SavedPaymentToken> => {
     const { data } = await api.put('/customer/card', payload);
     return data;
+  },
+
+  createDishReview: async (
+    orderId: string,
+    menuItemId: string,
+    payload: { rating: number; comment?: string | null; photoUrls?: string[] },
+  ): Promise<{
+    id: string;
+    menuItemId: string;
+    orderId: string;
+    rating: number;
+    comment: string | null;
+    photoUrls: string[];
+    visibility: string;
+    createdAt: string;
+  }> => {
+    const { data } = await api.post(
+      `/customer/orders/${encodeURIComponent(orderId)}/menu-items/${encodeURIComponent(menuItemId)}/reviews`,
+      payload,
+    );
+    return data;
+  },
+
+  addMenuItemReviewReply: async (
+    reviewId: string,
+    payload: { body: string; photoUrls?: string[] },
+  ) => {
+    const { data } = await api.post(
+      `/customer/menu-item-reviews/${encodeURIComponent(reviewId)}/replies`,
+      payload,
+    );
+    return data as {
+      id: string;
+      authorKind: 'customer' | 'staff';
+      authorLabel: string;
+      body: string;
+      photoUrls: string[];
+      createdAt: string;
+    };
+  },
+
+  toggleMenuItemReviewHelpful: async (reviewId: string) => {
+    const { data } = await api.post(
+      `/customer/menu-item-reviews/${encodeURIComponent(reviewId)}/reactions/helpful`,
+    );
+    return data as { reacted: boolean; helpfulCount: number };
   },
 };
 

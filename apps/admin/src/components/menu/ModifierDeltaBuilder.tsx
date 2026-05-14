@@ -3,6 +3,7 @@
 import React, { useMemo } from 'react';
 import { Button, Input, Label } from '@wrap-roll/shared-ui';
 import type { ModifierGroupInput } from '@wrap-roll/contracts';
+import { IngredientSearchSelect } from './IngredientSearchSelect';
 
 type IngredientOption = {
   id: string;
@@ -19,6 +20,7 @@ export type ModifierIngredientDelta = {
 type Props = {
   modifierGroups: ModifierGroupInput[];
   ingredients: IngredientOption[];
+  fetchIngredientOptions?: (query: string) => Promise<IngredientOption[]>;
   value: ModifierIngredientDelta[];
   onChange: (next: ModifierIngredientDelta[]) => void;
 };
@@ -33,6 +35,7 @@ function rowsForOption(
 export function ModifierDeltaBuilder({
   modifierGroups,
   ingredients,
+  fetchIngredientOptions,
   value,
   onChange,
 }: Props) {
@@ -115,21 +118,16 @@ export function ModifierDeltaBuilder({
                             key={`${row.optionId}-${row.ingredientId}-${globalIdx}`}
                             className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_160px_90px]"
                           >
-                            <div className="flex flex-col gap-1.5">
-                              <Label className="text-xs">Ingredient</Label>
-                              <select
-                                className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                            <div className="min-w-0">
+                              <IngredientSearchSelect
+                                label="Ingredient"
+                                ingredients={ingredients}
+                                fetchOptions={fetchIngredientOptions}
                                 value={row.ingredientId}
-                                onChange={(e) =>
-                                  updateRow(globalIdx, { ingredientId: e.target.value })
-                                }
-                              >
-                                {ingredients.map((ing) => (
-                                  <option key={ing.id} value={ing.id}>
-                                    {ing.name} ({ing.unit})
-                                  </option>
-                                ))}
-                              </select>
+                                onChange={(id) => updateRow(globalIdx, { ingredientId: id })}
+                                placeholder="Search ingredients…"
+                                resetSelectionOnFilterMismatch={false}
+                              />
                             </div>
 
                             <div className="flex flex-col gap-1.5">

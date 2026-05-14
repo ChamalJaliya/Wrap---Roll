@@ -1,5 +1,6 @@
 // libs/contracts/src/customer.schema.ts
 import { z } from 'zod';
+import { DishReviewHintRowSchema } from './menu-item-review.contracts';
 
 export const CustomerAddressSchema = z.object({
   id: z.string().uuid().optional(),
@@ -32,15 +33,32 @@ export const CustomerSchema = z.object({
   savedPayments: z.array(SavedPaymentTokenSchema),
 });
 
+export const CustomerHistoryOrderItemRowSchema = z.object({
+  id: z.string().uuid(),
+  menuItemId: z.string().uuid(),
+  name: z.string(),
+  quantity: z.number().int(),
+  unitPrice: z.number().or(z.string()),
+  lineTotal: z.number().or(z.string()),
+  modifiersJson: z.unknown().optional(),
+});
+
 export const CustomerHistoryOrderSchema = z.object({
   id: z.string().uuid(),
   placedAt: z.string(),
   fulfillmentType: z.string(),
   status: z.string(),
   total: z.number().or(z.string()),
+  paymentStatus: z.string().optional(),
+  source: z.string().optional(),
+  updatedAt: z.string().optional(),
+  items: z.array(CustomerHistoryOrderItemRowSchema).optional(),
+  /** Per distinct menu item on this order — server-computed review affordances */
+  dishReviewHints: z.array(DishReviewHintRowSchema).optional(),
 });
 
 export type CustomerAddress = z.infer<typeof CustomerAddressSchema>;
 export type SavedPaymentToken = z.infer<typeof SavedPaymentTokenSchema>;
 export type Customer = z.infer<typeof CustomerSchema>;
+export type CustomerHistoryOrderItemRow = z.infer<typeof CustomerHistoryOrderItemRowSchema>;
 export type CustomerHistoryOrder = z.infer<typeof CustomerHistoryOrderSchema>;

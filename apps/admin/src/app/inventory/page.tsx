@@ -28,10 +28,13 @@ import {
   Input,
   Label,
   MetricCard,
-  PageHeader,
   SharedDataGrid,
   SharedDataGridColumn,
+  Textarea,
+  cn,
 } from '@wrap-roll/shared-ui';
+import { AdminPageHeader } from '../../components/AdminPageHeader';
+import { adminPageContainerClass, adminPageDenseStackClass, adminPageRootClass } from '../../lib/admin-ui-contract';
 
 interface Ingredient {
   id: string;
@@ -109,6 +112,13 @@ type InventoryQuery = {
   sortDir?: 'asc' | 'desc';
   filters?: GridFilterGroup;
 };
+
+/** Keeps currency-ish numbers readable in inputs (avoids 3.050400000000001 from IEEE floats). */
+function normalizeMoneyForInput(value: number): number {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return Math.round(n * 10_000) / 10_000;
+}
 
 export default function InventoryDashboard() {
   const [inventory, setInventory] = useState<Ingredient[]>([]);
@@ -347,7 +357,7 @@ export default function InventoryDashboard() {
       type,
       quantity: 0,
       quantityDelta: 0,
-      unitCost: Number(ingredient.costPerUnit),
+      unitCost: normalizeMoneyForInput(Number(ingredient.costPerUnit)),
       note: '',
     });
     setIsMovementModalOpen(true);
@@ -433,26 +443,28 @@ export default function InventoryDashboard() {
   };
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Inventory Control"
-        description="Monitor stock, moving average costs, and inventory operations."
-        actions={
-          <div className="flex gap-3">
-            <Button
-              variant="outline"
-              onClick={fetchInventory}
-              className="flex items-center gap-2"
-            >
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />{' '}
-              Refresh
-            </Button>
-            <Button className="flex items-center gap-2" onClick={openCreateModal}>
-              <Plus className="h-4 w-4" /> Add Ingredient
-            </Button>
-          </div>
-        }
-      />
+    <div className={adminPageRootClass}>
+      <div className={adminPageContainerClass}>
+        <div className={adminPageDenseStackClass}>
+          <AdminPageHeader
+            title="Inventory Control"
+            description="Monitor stock, moving average costs, and inventory operations."
+            actions={
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  onClick={fetchInventory}
+                  className="flex items-center gap-2"
+                >
+                  <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />{' '}
+                  Refresh
+                </Button>
+                <Button className="flex items-center gap-2" onClick={openCreateModal}>
+                  <Plus className="h-4 w-4" /> Add Ingredient
+                </Button>
+              </div>
+            }
+          />
 
       {fetchError ? (
         <p
@@ -702,26 +714,38 @@ export default function InventoryDashboard() {
       </DataPanel>
 
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="max-w-xl">
-          <DialogHeader>
-            <DialogTitle>{editingIngredientId ? 'Edit Ingredient' : 'Add Ingredient'}</DialogTitle>
-          </DialogHeader>
-          <form className="space-y-4" onSubmit={handleSave}>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="ingredient-name">Name</Label>
+        <DialogContent className="max-w-xl gap-0 overflow-hidden p-0 sm:max-w-xl">
+          <div className="border-b border-border px-6 pb-4 pt-6">
+            <DialogHeader className="space-y-0 text-left">
+              <DialogTitle>{editingIngredientId ? 'Edit Ingredient' : 'Add Ingredient'}</DialogTitle>
+            </DialogHeader>
+          </div>
+          <form className="flex flex-col px-6 pb-6 pt-4" onSubmit={handleSave}>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-end">
+              <div className="space-y-2">
+                <Label htmlFor="ingredient-name" className="text-xs">
+                  Name
+                </Label>
                 <Input
                   id="ingredient-name"
                   required
+                  className="h-10"
                   value={form.name}
                   onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
                 />
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="ingredient-unit">Unit</Label>
+              <div className="space-y-2">
+                <Label htmlFor="ingredient-unit" className="text-xs">
+                  Unit
+                </Label>
                 <select
                   id="ingredient-unit"
-                  className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                  className={cn(
+                    'h-10 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none transition-[color,box-shadow]',
+                    'focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50',
+                    'disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50',
+                    'dark:bg-input/30',
+                  )}
                   value={form.unit}
                   onChange={(e) =>
                     setForm((prev) => ({ ...prev, unit: e.target.value as IngredientFormState['unit'] }))
@@ -733,25 +757,26 @@ export default function InventoryDashboard() {
                 </select>
               </div>
             </div>
-            <div className="grid grid-cols-1 gap-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="ingredient-low">Low Stock Threshold</Label>
-                <Input
-                  id="ingredient-low"
-                  type="number"
-                  step="0.01"
-                  min={0}
-                  required
-                  value={form.lowStockThreshold}
-                  onChange={(e) => setForm((prev) => ({ ...prev, lowStockThreshold: Number(e.target.value) }))}
-                />
-              </div>
+            <div className="mt-4 space-y-2">
+              <Label htmlFor="ingredient-low" className="text-xs">
+                Low Stock Threshold
+              </Label>
+              <Input
+                id="ingredient-low"
+                type="number"
+                step="0.01"
+                min={0}
+                required
+                className="h-10"
+                value={form.lowStockThreshold}
+                onChange={(e) => setForm((prev) => ({ ...prev, lowStockThreshold: Number(e.target.value) }))}
+              />
             </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
+            <DialogFooter className="mt-6 gap-2 border-t border-border pt-4 sm:justify-end">
+              <Button type="button" variant="outline" className="h-10" onClick={() => setIsModalOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSaving}>
+              <Button type="submit" className="h-10" disabled={isSaving}>
                 {isSaving ? 'Saving...' : editingIngredientId ? 'Update Ingredient' : 'Create Ingredient'}
               </Button>
             </DialogFooter>
@@ -760,80 +785,134 @@ export default function InventoryDashboard() {
       </Dialog>
 
       <Dialog open={isMovementModalOpen} onOpenChange={setIsMovementModalOpen}>
-        <DialogContent className="max-w-xl">
-          <DialogHeader>
-            <DialogTitle>
-              {movementForm.type === 'restock'
-                ? 'Restock Ingredient'
-                : movementForm.type === 'waste'
-                  ? 'Record Waste'
-                  : 'Adjust Stock'}
-            </DialogTitle>
-          </DialogHeader>
-          <form className="space-y-4" onSubmit={handleSaveMovement}>
-            <div className="space-y-1.5">
-              <Label>Ingredient</Label>
-              <Input value={selectedIngredient?.name ?? ''} disabled />
+        <DialogContent className="max-w-xl gap-0 overflow-hidden p-0 sm:max-w-xl">
+          <div className="border-b border-border px-6 pb-4 pt-6">
+            <DialogHeader className="space-y-1 text-left">
+              <DialogTitle>
+                {movementForm.type === 'restock'
+                  ? 'Restock ingredient'
+                  : movementForm.type === 'waste'
+                    ? 'Record waste'
+                    : 'Adjust stock'}
+              </DialogTitle>
+              <p className="text-xs text-muted-foreground">
+                {movementForm.type === 'restock'
+                  ? 'Add quantity and the purchase unit cost for this receipt.'
+                  : movementForm.type === 'waste'
+                    ? 'Remove quantity from stock (spoilage, prep loss, etc.).'
+                    : 'Enter a positive or negative change to on-hand quantity.'}
+              </p>
+            </DialogHeader>
+          </div>
+          <form className="flex flex-col px-6 pb-6 pt-5" onSubmit={handleSaveMovement}>
+            <div className="space-y-5">
+              <div className="space-y-2">
+                <Label className="text-xs">Ingredient</Label>
+                <div className="rounded-lg border border-border/80 bg-muted/30 px-3 py-2.5 text-sm font-medium text-foreground">
+                  {selectedIngredient?.name ?? '—'}
+                </div>
+              </div>
+              {movementForm.type === 'adjust' ? (
+                <div className="space-y-2">
+                  <Label htmlFor="movement-quantity-delta" className="text-xs">
+                    Quantity delta (+ / −)
+                  </Label>
+                  <Input
+                    id="movement-quantity-delta"
+                    type="number"
+                    step="0.01"
+                    required
+                    className="h-10"
+                    value={movementForm.quantityDelta}
+                    onChange={(e) =>
+                      setMovementForm((prev) => ({ ...prev, quantityDelta: Number(e.target.value) }))
+                    }
+                  />
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label htmlFor="movement-quantity" className="text-xs">
+                    Quantity
+                  </Label>
+                  <Input
+                    id="movement-quantity"
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    required
+                    className="h-10"
+                    value={movementForm.quantity}
+                    onChange={(e) =>
+                      setMovementForm((prev) => ({ ...prev, quantity: Number(e.target.value) }))
+                    }
+                  />
+                </div>
+              )}
+              {movementForm.type === 'restock' ? (
+                <div className="space-y-2">
+                  <Label htmlFor="movement-unit-cost" className="text-xs">
+                    Purchase unit cost (LKR)
+                  </Label>
+                  <Input
+                    id="movement-unit-cost"
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    required
+                    className="h-10"
+                    value={movementForm.unitCost}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (v === '') {
+                        setMovementForm((prev) => ({ ...prev, unitCost: 0 }));
+                        return;
+                      }
+                      const n = Number(v);
+                      if (Number.isFinite(n)) {
+                        setMovementForm((prev) => ({ ...prev, unitCost: n }));
+                      }
+                    }}
+                    onBlur={() =>
+                      setMovementForm((prev) => ({
+                        ...prev,
+                        unitCost: normalizeMoneyForInput(prev.unitCost),
+                      }))
+                    }
+                  />
+                </div>
+              ) : null}
+              <div className="space-y-2">
+                <Label htmlFor="movement-note" className="text-xs">
+                  Note <span className="font-normal text-muted-foreground">(optional)</span>
+                </Label>
+                <Textarea
+                  id="movement-note"
+                  rows={3}
+                  className="min-h-[4.5rem] resize-y bg-background text-sm"
+                  placeholder="Optional context for this movement…"
+                  value={movementForm.note}
+                  onChange={(e) => setMovementForm((prev) => ({ ...prev, note: e.target.value }))}
+                />
+              </div>
             </div>
-            {movementForm.type === 'adjust' ? (
-              <div className="space-y-1.5">
-                <Label htmlFor="movement-quantity-delta">Quantity Delta (+/-)</Label>
-                <Input
-                  id="movement-quantity-delta"
-                  type="number"
-                  step="0.01"
-                  required
-                  value={movementForm.quantityDelta}
-                  onChange={(e) => setMovementForm((prev) => ({ ...prev, quantityDelta: Number(e.target.value) }))}
-                />
-              </div>
-            ) : (
-              <div className="space-y-1.5">
-                <Label htmlFor="movement-quantity">Quantity</Label>
-                <Input
-                  id="movement-quantity"
-                  type="number"
-                  step="0.01"
-                  min={0}
-                  required
-                  value={movementForm.quantity}
-                  onChange={(e) => setMovementForm((prev) => ({ ...prev, quantity: Number(e.target.value) }))}
-                />
-              </div>
-            )}
-            {movementForm.type === 'restock' ? (
-              <div className="space-y-1.5">
-                <Label htmlFor="movement-unit-cost">Purchase Unit Cost</Label>
-                <Input
-                  id="movement-unit-cost"
-                  type="number"
-                  step="0.01"
-                  min={0}
-                  required
-                  value={movementForm.unitCost}
-                  onChange={(e) => setMovementForm((prev) => ({ ...prev, unitCost: Number(e.target.value) }))}
-                />
-              </div>
-            ) : null}
-            <div className="space-y-1.5">
-              <Label htmlFor="movement-note">Note</Label>
-              <Input
-                id="movement-note"
-                value={movementForm.note}
-                onChange={(e) => setMovementForm((prev) => ({ ...prev, note: e.target.value }))}
-              />
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsMovementModalOpen(false)}>
+            <DialogFooter className="mt-8 gap-2 border-t border-border pt-5 sm:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-10"
+                onClick={() => setIsMovementModalOpen(false)}
+              >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSaving}>
-                {isSaving ? 'Saving...' : 'Save'}
+              <Button type="submit" className="h-10 min-w-[5.5rem]" disabled={isSaving}>
+                {isSaving ? 'Saving…' : 'Save'}
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
+        </div>
+      </div>
     </div>
   );
 }

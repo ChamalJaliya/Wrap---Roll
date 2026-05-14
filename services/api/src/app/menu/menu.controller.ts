@@ -1,4 +1,14 @@
-import { Controller, Get, Param, Post, Body, Patch, Delete, Query, Put } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Put,
+  Query,
+} from '@nestjs/common';
 import { CurrentUser, RequestUser } from '../../auth/current-user.decorator';
 import { ApiBody, ApiTags } from '@nestjs/swagger';
 import {
@@ -11,6 +21,7 @@ import {
 } from '../../openapi/zod-dtos';
 import { ListFilterGroup } from '../common/list-filter.util';
 import { MenuService } from './menu.service';
+import { MenuReviewService } from '../menu-review/menu-review.service';
 import { Public } from '../../auth/public.decorator';
 import { Roles } from '../../auth/roles.decorator';
 import { Availability } from '@prisma/client';
@@ -19,7 +30,10 @@ import { Throttle } from '@nestjs/throttler';
 @Controller('menu')
 @ApiTags('menu')
 export class MenuController {
-  constructor(private readonly menuService: MenuService) {}
+  constructor(
+    private readonly menuService: MenuService,
+    private readonly menuReviewService: MenuReviewService,
+  ) {}
 
   @Throttle({ default: { limit: 100, ttl: 60000 } })
   @Get()
@@ -71,6 +85,30 @@ export class MenuController {
   @Public()
   async getPublicMenuItemInfo(@Param('id') id: string) {
     return this.menuService.getPublicMenuItemInfo(id);
+  }
+
+  @Throttle({ default: { limit: 120, ttl: 60000 } })
+  @Get(':id/reviews/summary')
+  @Public()
+  async getMenuItemReviewSummary(@Param('id') id: string) {
+    return this.menuReviewService.getPublicSummary(id);
+  }
+
+  @Throttle({ default: { limit: 120, ttl: 60000 } })
+  @Get(':id/reviews')
+  @Public()
+  async getMenuItemReviews(
+    @Param('id') id: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const p = page !== undefined && page !== '' ? Number(page) : 1;
+    const l = limit !== undefined && limit !== '' ? Number(limit) : 20;
+    return this.menuReviewService.listPublicReviews(
+      id,
+      Number.isFinite(p) ? p : 1,
+      Number.isFinite(l) ? l : 20,
+    );
   }
 
   @Post('categories')

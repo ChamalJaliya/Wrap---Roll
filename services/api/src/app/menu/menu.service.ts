@@ -679,6 +679,8 @@ export class MenuService {
     modifierGroupsJson: unknown;
     createdAt: Date | string;
     updatedAt: Date | string;
+    averageRating?: { toString(): string } | number | null;
+    reviewCount?: number;
   }): MenuItem {
     const toIso = (d: Date | string) => {
       if (d instanceof Date) return d.toISOString();
@@ -694,6 +696,16 @@ export class MenuService {
       ? item.basePrice 
       : Number(item.basePrice?.toString() || 0);
 
+    const reviewCount = item.reviewCount ?? 0;
+    const averageRating =
+      item.averageRating != null && item.averageRating !== undefined
+        ? Number(
+            typeof item.averageRating === 'number'
+              ? item.averageRating
+              : item.averageRating.toString(),
+          )
+        : null;
+
     return {
       itemId: item.id,
       name: item.name,
@@ -708,6 +720,9 @@ export class MenuService {
       modifierGroups: (item.modifierGroupsJson as MenuItem['modifierGroups']) ?? [],
       createdAt: toIso(item.createdAt),
       updatedAt: toIso(item.updatedAt),
+      ...(reviewCount > 0
+        ? { reviewCount, averageRating }
+        : {}),
     };
   }
 }

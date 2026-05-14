@@ -1,0 +1,59 @@
+
+> wrap-and-roll@0.0.0 start:delivery
+> nx run delivery:dev --port=3004
+
+
+> nx run delivery:dev --port=3004
+
+> next dev --port=3004
+
+(node:2558) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2575) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+▲ Next.js 16.1.7 (Turbopack)
+- Local:         http://localhost:3004
+- Network:       http://192.168.1.2:3004
+- Environments: .env.local
+
+✓ Starting...
+✓ Ready in 2.5s
+(node:4019) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET / 200 in 796ms (compile: 611ms, render: 185ms)
+✓ Compiled in 379ms
+ GET / 200 in 366ms (compile: 129ms, render: 237ms)
+ GET / 200 in 833ms (compile: 347ms, render: 485ms)
+ GET / 200 in 690ms (compile: 390ms, render: 300ms)
+✓ Compiled in 176ms
+ GET / 200 in 669ms (compile: 270ms, render: 399ms)
+ GET / 200 in 669ms (compile: 359ms, render: 310ms)
+✓ Compiled in 220ms
+ GET / 200 in 348ms (compile: 30ms, render: 318ms)
+✓ Compiled in 243ms
+✓ Compiled in 156ms
+(node:21019) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:21020) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:21022) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:21018) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:21021) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:21023) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[?25h
+Task "delivery:dev" is continuous but exited with code 0
+
+
+
+ NX   Running target dev for project delivery failed
+
+Failed tasks:
+
+- delivery:dev
+
+Hint: run the command with --verbose for more details.
+

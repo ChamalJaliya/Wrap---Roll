@@ -14,7 +14,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { MenuItem, ModifierGroup } from '@wrap-roll/contracts';
+import type { MenuItem, ModifierGroup, MenuItemReviewSummary, PublicMenuItemReviewList } from '@wrap-roll/contracts';
 import { formatApiError } from '@/lib/api-error';
 import { MenuService } from '@/services/api';
 import {
@@ -59,6 +59,8 @@ export default function MenuItemDetailScreen() {
   const [item, setItem] = useState<MenuItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<SelectedModifier[]>([]);
+  const [reviewSummary, setReviewSummary] = useState<MenuItemReviewSummary | null>(null);
+  const [reviewList, setReviewList] = useState<PublicMenuItemReviewList | null>(null);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -78,6 +80,31 @@ export default function MenuItemDetailScreen() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const [summary, list] = await Promise.all([
+          MenuService.getMenuItemReviewSummary(String(id)).catch(() => null),
+          MenuService.getMenuItemPublicReviews(String(id), { page: 1, limit: 6 }).catch(() => null),
+        ]);
+        if (!cancelled) {
+          setReviewSummary(summary);
+          setReviewList(list);
+        }
+      } catch {
+        if (!cancelled) {
+          setReviewSummary(null);
+          setReviewList(null);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
 
   const pricePreview = useMemo(() => {
     if (!item) return 0;
@@ -201,6 +228,9 @@ export default function MenuItemDetailScreen() {
           {item.description ? <Text style={styles.desc}>{item.description}</Text> : null}
           <Text style={styles.meta}>
             {item.categoryName} · {item.prepTimeMinutes} min prep
+            {(item.reviewCount ?? 0) > 0 && item.averageRating != null
+              ? ` · ★ ${item.averageRating.toFixed(1)} (${item.reviewCount})`
+              : ''}
           </Text>
           {unavailable ? (
             <View style={styles.soldOutBanner}>
@@ -285,6 +315,60 @@ export default function MenuItemDetailScreen() {
             </View>
           );
         })}
+        <SurfaceCard style={styles.reviewsCard}>
+          <Text style={styles.reviewsTitle}>Reviews</Text>
+          {reviewSummary && reviewSummary.reviewCount > 0 ? (
+            <Text style={styles.reviewsSub}>
+              Average {reviewSummary.averageRating?.toFixed(1) ?? '—'} · {reviewSummary.reviewCount} public
+            </Text>
+          ) : (
+            <Text style={styles.reviewsSub}>No public reviews yet.</Text>
+          )}
+          {reviewList && reviewList.items.length > 0 ? (
+            <View style={styles.reviewList}>
+              {reviewList.items.map((r) => (
+                <View key={r.id} style={styles.reviewRow}>
+                  <Text style={styles.reviewStars}>
+                    {r.rating}★ · {r.authorLabel}
+                  </Text>
+                  <Text style={styles.reviewMeta}>
+                    {r.helpfulCount} helpful · {r.replyCount} replies
+                  </Text>
+                  <Text style={styles.reviewComment} numberOfLines={4}>
+                    {r.comment?.trim() ? r.comment : 'No comment'}
+                  </Text>
+                  {r.replies.length > 0 ? (
+                    <View style={styles.replyBlock}>
+                      {r.replies.slice(0, 3).map((rep) => {
+                        const repPhotos = rep.photoUrls ?? [];
+                        return (
+                          <View key={rep.id} style={styles.replyRow}>
+                            <Text style={styles.replyLine} numberOfLines={repPhotos.length ? 2 : 3}>
+                              <Text style={styles.replyAuthor}>{rep.authorLabel}: </Text>
+                              {rep.body?.trim() ? rep.body : repPhotos.length ? '' : '—'}
+                            </Text>
+                            {repPhotos.length > 0 ? (
+                              <View style={styles.replyPhotos}>
+                                {repPhotos.map((url) => (
+                                  <Image
+                                    key={url.slice(0, 48)}
+                                    source={{ uri: url }}
+                                    style={styles.replyPhotoThumb}
+                                    contentFit="cover"
+                                  />
+                                ))}
+                              </View>
+                            ) : null}
+                          </View>
+                        );
+                      })}
+                    </View>
+                  ) : null}
+                </View>
+              ))}
+            </View>
+          ) : null}
+        </SurfaceCard>
       </ScrollView>
 
       <StickyFooter>
@@ -473,6 +557,27 @@ const styles = StyleSheet.create({
     borderColor: theme.primary,
     backgroundColor: theme.primary,
   },
+  reviewsCard: { marginHorizontal: 18, marginTop: 20, marginBottom: 8, padding: 16 },
+  reviewsTitle: { fontSize: 15, fontWeight: '900', color: theme.text },
+  reviewsSub: { marginTop: 6, fontSize: 12, color: theme.subtext, fontWeight: '600' },
+  reviewList: { marginTop: 12 },
+  reviewRow: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    padding: 10,
+    backgroundColor: '#fafafa',
+    marginBottom: 10,
+  },
+  reviewStars: { fontSize: 13, fontWeight: '900', color: '#b45309' },
+  reviewMeta: { marginTop: 2, fontSize: 11, color: theme.subtext, fontWeight: '600' },
+  reviewComment: { marginTop: 4, fontSize: 13, color: theme.text, lineHeight: 18 },
+  replyBlock: { marginTop: 8, paddingLeft: 8, borderLeftWidth: 2, borderLeftColor: '#fed7aa' },
+  replyRow: { marginBottom: 8 },
+  replyLine: { fontSize: 12, color: theme.text, marginBottom: 4, lineHeight: 16 },
+  replyPhotos: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 },
+  replyPhotoThumb: { width: 44, height: 44, borderRadius: 8, borderWidth: 1, borderColor: '#e5e5e5' },
+  replyAuthor: { fontWeight: '800', color: theme.text },
   footerInner: {
     flexDirection: 'row',
     justifyContent: 'space-between',

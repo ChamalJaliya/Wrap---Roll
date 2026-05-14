@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -107,6 +107,9 @@ export default function ProfileScreen() {
   const [addressDraft, setAddressDraft] = useState<AddressDraft>(EMPTY_ADDRESS);
   const [cardDraft, setCardDraft] = useState<CardDraft>(EMPTY_CARD);
 
+  const [reviewDrafts, setReviewDrafts] = useState<Record<string, { rating: number; comment: string }>>({});
+  const [submittingReviewKey, setSubmittingReviewKey] = useState<string | null>(null);
+
   const loadData = async () => {
     try {
       const [profile, addressBook, savedCards, orderHistory] = await Promise.all([
@@ -130,6 +133,47 @@ export default function ProfileScreen() {
   useEffect(() => {
     void loadData();
   }, []);
+
+  const reviewTargets = useMemo(() => {
+    const pending: { key: string; orderId: string; menuItemId: string; name: string }[] = [];
+    const done: { key: string; orderId: string; name: string; rating: number; visibility: string }[] = [];
+    for (const o of history) {
+      for (const h of o.dishReviewHints ?? []) {
+        const key = `${o.id}:${h.menuItemId}`;
+        if (h.canSubmit) pending.push({ key, orderId: o.id, menuItemId: h.menuItemId, name: h.name });
+        else if (h.existingReview) {
+          done.push({
+            key,
+            orderId: o.id,
+            name: h.name,
+            rating: h.existingReview.rating,
+            visibility: h.existingReview.visibility,
+          });
+        }
+      }
+    }
+    return { pending, done };
+  }, [history]);
+
+  const getDraft = (key: string) => reviewDrafts[key] ?? { rating: 5, comment: '' };
+
+  const submitReview = async (orderId: string, menuItemId: string, key: string) => {
+    const d = getDraft(key);
+    setSubmittingReviewKey(key);
+    setNotice('');
+    try {
+      await CustomerApiService.createDishReview(orderId, menuItemId, {
+        rating: d.rating,
+        comment: d.comment.trim() || null,
+      });
+      setNotice('Thanks — review submitted for moderation.');
+      await loadData();
+    } catch (e) {
+      setNotice(formatApiError(e));
+    } finally {
+      setSubmittingReviewKey(null);
+    }
+  };
 
   const saveProfile = async () => {
     setNotice('');
@@ -411,12 +455,70 @@ export default function ProfileScreen() {
           </SurfaceCard>
 
           <SurfaceCard style={styles.sectionCard}>
-            <SectionHeader
-              icon="map-marker"
-              title="Address book"
-              subtitle={`${addresses.length} saved`}
-              right={<PillAction label={showAddressEditor ? 'Close' : 'Add'} onPress={toggleAddressEditor} />}
-            />
+            <SectionHeader icon="star" title="Rate dishes" subtitle="Verified purchases from your orders." />
+            <View style={styles.cardBodyGap}>
+              {reviewTargets.pending.length === 0 && reviewTargets.done.length === 0 ? (
+                <Text style={styles.muted}>Nothing to rate yet.</Text>
+              ) : null}
+              {reviewTargets.pending.map((row) => {
+                const d = getDraft(row.key);
+                return (
+                  <View key={row.key} style={styles.reviewCard}>
+                    <Text style={styles.reviewDish}>{row.name}</Text>
+                    <Text style={styles.reviewOrderMeta}>Order #{row.orderId.slice(0, 8)}</Text>
+                    <View style={styles.starRow}>
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <Pressable
+                          key={n}
+                          onPress={() =>
+                            setReviewDrafts((s) => ({
+                              ...s,
+                              [row.key]: { ...d, rating: n },
+                            }))
+                          }
+                          style={[styles.starPill, d.rating === n && styles.starPillOn]}
+                        >
+                          <Text style={[styles.starPillText, d.rating === n && styles.starPillTextOn]}>{n}★</Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                    <Text style={styles.label}>Comment (optional)</Text>
+                    <TextInput
+                      style={[styles.input, styles.reviewCommentInput]}
+                      value={d.comment}
+                      onChangeText={(t) =>
+                        setReviewDrafts((s) => ({
+                          ...s,
+                          [row.key]: { ...d, comment: t },
+                        }))
+                      }
+                      placeholder="How was it?"
+                      multiline
+                      maxLength={2000}
+                    />
+                    <PrimaryButton
+                      label={submittingReviewKey === row.key ? 'Submitting…' : 'Submit review'}
+                      onPress={() => void submitReview(row.orderId, row.menuItemId, row.key)}
+                      disabled={submittingReviewKey === row.key}
+                    />
+                  </View>
+                );
+              })}
+              {reviewTargets.done.length > 0 ? (
+                <View style={styles.doneReviews}>
+                  <Text style={styles.doneReviewsTitle}>Submitted</Text>
+                  {reviewTargets.done.map((row) => (
+                    <Text key={row.key} style={styles.doneReviewLine}>
+                      {row.name} · {row.rating}★ · {row.visibility}
+                    </Text>
+                  ))}
+                </View>
+              ) : null}
+            </View>
+          </SurfaceCard>
+
+          <SurfaceCard style={styles.sectionCard}>
+            <SectionHeader icon="map-marker" title="Address book" subtitle={`${addresses.length} saved`} right={<PillAction label={showAddressEditor ? 'Close' : 'Add'} onPress={toggleAddressEditor} />} />
             <View style={styles.cardBodyGap}>
               {showAddressEditor ? (
                 <View style={styles.editor}>
@@ -825,4 +927,30 @@ const styles = StyleSheet.create({
   toggleBtnTextActive: { color: theme.primaryDeep },
   link: { color: theme.primaryDeep, fontWeight: '800' },
   inlineEnd: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  reviewCard: {
+    borderWidth: 1,
+    borderColor: theme.border,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 12,
+    backgroundColor: theme.card,
+  },
+  reviewDish: { fontSize: 16, fontWeight: '900', color: theme.text },
+  reviewOrderMeta: { marginTop: 4, fontSize: 12, color: theme.subtext, fontWeight: '600' },
+  starRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10, marginBottom: 8 },
+  starPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: theme.border,
+    backgroundColor: theme.card,
+  },
+  starPillOn: { borderColor: theme.primary, backgroundColor: '#fff7ed' },
+  starPillText: { fontSize: 12, fontWeight: '800', color: theme.subtext },
+  starPillTextOn: { color: theme.primaryDeep },
+  reviewCommentInput: { minHeight: 72, textAlignVertical: 'top' },
+  doneReviews: { marginTop: 8, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.border },
+  doneReviewsTitle: { fontSize: 13, fontWeight: '900', color: theme.text, marginBottom: 6 },
+  doneReviewLine: { fontSize: 13, color: theme.subtext, marginBottom: 4, fontWeight: '600' },
 });

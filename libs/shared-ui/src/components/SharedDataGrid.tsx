@@ -4,7 +4,18 @@ import { ReactNode, useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronUp, Columns3, Filter, Plus, Save, Trash2, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { SearchInput } from './SearchInput';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from './ui/dialog';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
+import { NativeSelect } from './NativeSelect';
+import { Separator } from './ui/separator';
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -23,6 +34,10 @@ import {
   TableRow,
 } from './ui/table';
 import { cn } from '../lib/utils';
+
+/** Shared styling for filter dialog selects (matches Input height/radius). */
+const gridFilterSelectClass =
+  'h-10 w-full rounded-xl border border-input bg-background px-3 text-sm text-foreground shadow-sm outline-none transition-[box-shadow,colors] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50';
 
 export type GridSortDir = 'asc' | 'desc';
 export type GridFieldType = 'string' | 'number' | 'boolean' | 'enum' | 'date' | 'datetime';
@@ -680,193 +695,300 @@ export function SharedDataGrid<T>({
         </div>
       </div>
       <Dialog open={isFilterDialogOpen} onOpenChange={setIsFilterDialogOpen}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>Filter settings</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Match</span>
-              <select
-                className="h-9 rounded-md border border-border bg-background px-2 text-sm"
+        <DialogContent
+          showCloseButton
+          className="max-h-[min(90vh,760px)] max-w-[calc(100vw-1.5rem)] gap-0 overflow-hidden rounded-2xl border-border/80 p-0 shadow-2xl sm:max-w-2xl"
+        >
+          <div className="relative border-b border-border/60 bg-gradient-to-br from-primary/[0.08] via-background to-muted/30 px-6 pb-5 pt-6 pr-14">
+            <DialogHeader className="space-y-3 text-left">
+              <div className="flex gap-4">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/12 text-primary shadow-inner ring-1 ring-primary/15">
+                  <Filter className="h-6 w-6" strokeWidth={2.25} aria-hidden />
+                </div>
+                <div className="min-w-0 space-y-1">
+                  <DialogTitle className="font-display text-xl font-black tracking-tight text-foreground">
+                    Filters
+                  </DialogTitle>
+                  <DialogDescription className="text-sm leading-snug text-muted-foreground">
+                    Combine fields and operators to narrow this table. Rules work together with the search box and column
+                    sort.
+                  </DialogDescription>
+                </div>
+              </div>
+            </DialogHeader>
+          </div>
+
+          <div className="max-h-[min(52vh,480px)] overflow-y-auto overscroll-contain px-6 py-5">
+            <div className="rounded-xl border border-border/60 bg-muted/20 p-4 shadow-inner">
+              <NativeSelect
+                label="Combine rules"
+                variant="surface"
                 value={draftFilters.logic}
                 onChange={(e) =>
                   setDraftFilters((prev) => ({ ...prev, logic: e.target.value as 'AND' | 'OR' }))
                 }
               >
-                <option value="AND">All rules (AND)</option>
-                <option value="OR">Any rule (OR)</option>
-              </select>
+                <option value="AND">All rules must match (AND)</option>
+                <option value="OR">Match any rule (OR)</option>
+              </NativeSelect>
+              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                AND requires every rule to pass; OR passes if any rule matches.
+              </p>
             </div>
-            {draftFilters.rules.map((rule) => {
-              const field = filterFields.find((f) => f.id === rule.field) ?? filterFields[0];
-              const ops: GridFilterOperator[] = field ? operatorOptions[field.type] : ['contains'];
-              return (
-                <div key={rule.id} className="grid grid-cols-1 gap-2 rounded-lg border p-2 md:grid-cols-12">
-                  <select
-                    className="h-9 rounded-md border border-border bg-background px-2 text-sm md:col-span-4"
-                    value={rule.field}
-                    onChange={(e) =>
-                      setDraftFilters((prev) => ({
-                        ...prev,
-                        rules: prev.rules.map((r) =>
-                          r.id === rule.id
-                            ? {
-                                ...r,
-                                field: e.target.value,
-                                op: operatorOptions[
-                                  filterFields.find((f) => f.id === e.target.value)?.type ?? 'string'
-                                ][0],
-                                value: '',
-                                valueTo: undefined,
-                              }
-                            : r,
-                        ),
-                      }))
-                    }
+
+            <Separator className="my-5 bg-border/70" />
+
+            <div className="space-y-3">
+              <div className="flex items-end justify-between gap-2">
+                <Label className="text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">Rules</Label>
+                <span className="text-xs text-muted-foreground">{draftFilters.rules.length} defined</span>
+              </div>
+
+              {draftFilters.rules.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-border/80 bg-muted/10 px-4 py-8 text-center">
+                  <p className="text-sm font-medium text-foreground">No rules yet</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Add a rule to filter by name, email, dates, and more.
+                  </p>
+                </div>
+              ) : null}
+
+              {draftFilters.rules.map((rule) => {
+                const field = filterFields.find((f) => f.id === rule.field) ?? filterFields[0];
+                const ops: GridFilterOperator[] = field ? operatorOptions[field.type] : ['contains'];
+                return (
+                  <div
+                    key={rule.id}
+                    className="rounded-xl border border-border/70 bg-card/90 p-4 shadow-sm ring-1 ring-black/[0.04]"
                   >
-                    {filterFields.map((f) => (
-                      <option key={f.id} value={f.id}>
-                        {f.label}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    className="h-9 rounded-md border border-border bg-background px-2 text-sm md:col-span-3"
-                    value={rule.op}
-                    onChange={(e) =>
-                      setDraftFilters((prev) => ({
-                        ...prev,
-                        rules: prev.rules.map((r) =>
-                          r.id === rule.id ? { ...r, op: e.target.value as GridFilterOperator } : r,
-                        ),
-                      }))
-                    }
-                  >
-                    {ops.map((op) => (
-                      <option key={op} value={op}>
-                        {operatorLabel[op]}
-                      </option>
-                    ))}
-                  </select>
-                  {rule.op !== 'is_true' && rule.op !== 'is_false' ? (
-                    <>
-                      {field?.type === 'enum' && field.options ? (
+                    <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_1fr_auto] lg:items-end">
+                      <div className="space-y-1.5">
+                        <Label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Field
+                        </Label>
                         <select
-                          className="h-9 rounded-md border border-border bg-background px-2 text-sm md:col-span-3"
-                          value={String(rule.value ?? '')}
+                          className={gridFilterSelectClass}
+                          value={rule.field}
                           onChange={(e) =>
                             setDraftFilters((prev) => ({
                               ...prev,
                               rules: prev.rules.map((r) =>
-                                r.id === rule.id ? { ...r, value: e.target.value } : r,
+                                r.id === rule.id
+                                  ? {
+                                      ...r,
+                                      field: e.target.value,
+                                      op: operatorOptions[
+                                        filterFields.find((f) => f.id === e.target.value)?.type ?? 'string'
+                                      ][0],
+                                      value: '',
+                                      valueTo: undefined,
+                                    }
+                                  : r,
                               ),
                             }))
                           }
                         >
-                          <option value="">Select</option>
-                          {field.options.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
+                          {filterFields.map((f) => (
+                            <option key={f.id} value={f.id}>
+                              {f.label}
                             </option>
                           ))}
                         </select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Operator
+                        </Label>
+                        <select
+                          className={gridFilterSelectClass}
+                          value={rule.op}
+                          onChange={(e) =>
+                            setDraftFilters((prev) => ({
+                              ...prev,
+                              rules: prev.rules.map((r) =>
+                                r.id === rule.id ? { ...r, op: e.target.value as GridFilterOperator } : r,
+                              ),
+                            }))
+                          }
+                        >
+                          {ops.map((op) => (
+                            <option key={op} value={op}>
+                              {operatorLabel[op]}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {rule.op !== 'is_true' && rule.op !== 'is_false' ? (
+                        <div className="space-y-1.5 lg:col-span-1">
+                          <Label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            {rule.op === 'between' ? 'Range' : 'Value'}
+                          </Label>
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                            {field?.type === 'enum' && field.options ? (
+                              <select
+                                className={cn(gridFilterSelectClass, 'flex-1')}
+                                value={String(rule.value ?? '')}
+                                onChange={(e) =>
+                                  setDraftFilters((prev) => ({
+                                    ...prev,
+                                    rules: prev.rules.map((r) =>
+                                      r.id === rule.id ? { ...r, value: e.target.value } : r,
+                                    ),
+                                  }))
+                                }
+                              >
+                                <option value="">Choose…</option>
+                                {field.options.map((option) => (
+                                  <option key={option.value} value={option.value}>
+                                    {option.label}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
+                              <Input
+                                className="h-10 rounded-xl"
+                                type={
+                                  field?.type === 'number'
+                                    ? 'number'
+                                    : field?.type === 'date' || field?.type === 'datetime'
+                                      ? 'date'
+                                      : 'text'
+                                }
+                                value={String(rule.value ?? '')}
+                                placeholder="Enter value…"
+                                onChange={(e) =>
+                                  setDraftFilters((prev) => ({
+                                    ...prev,
+                                    rules: prev.rules.map((r) =>
+                                      r.id === rule.id
+                                        ? {
+                                            ...r,
+                                            value:
+                                              field?.type === 'number' ? Number(e.target.value) : e.target.value,
+                                          }
+                                        : r,
+                                    ),
+                                  }))
+                                }
+                              />
+                            )}
+                            {rule.op === 'between' ? (
+                              <Input
+                                className="h-10 rounded-xl sm:max-w-[140px]"
+                                type={field?.type === 'number' ? 'number' : 'text'}
+                                value={String(rule.valueTo ?? '')}
+                                placeholder="To…"
+                                onChange={(e) =>
+                                  setDraftFilters((prev) => ({
+                                    ...prev,
+                                    rules: prev.rules.map((r) =>
+                                      r.id === rule.id
+                                        ? {
+                                            ...r,
+                                            valueTo:
+                                              field?.type === 'number' ? Number(e.target.value) : e.target.value,
+                                          }
+                                        : r,
+                                    ),
+                                  }))
+                                }
+                              />
+                            ) : null}
+                          </div>
+                        </div>
                       ) : (
-                        <input
-                          className="h-9 rounded-md border border-border bg-background px-2 text-sm md:col-span-3"
-                          type={field?.type === 'number' ? 'number' : field?.type === 'date' || field?.type === 'datetime' ? 'date' : 'text'}
-                          value={String(rule.value ?? '')}
-                          onChange={(e) =>
-                            setDraftFilters((prev) => ({
-                              ...prev,
-                              rules: prev.rules.map((r) =>
-                                r.id === rule.id
-                                  ? { ...r, value: field?.type === 'number' ? Number(e.target.value) : e.target.value }
-                                  : r,
-                              ),
-                            }))
-                          }
-                        />
+                        <div className="flex items-center rounded-xl border border-dashed border-border/80 bg-muted/20 px-3 py-2.5 text-xs text-muted-foreground lg:min-h-[2.5rem]">
+                          No value needed for this operator.
+                        </div>
                       )}
-                      {rule.op === 'between' ? (
-                        <input
-                          className="h-9 rounded-md border border-border bg-background px-2 text-sm md:col-span-1"
-                          type={field?.type === 'number' ? 'number' : 'text'}
-                          value={String(rule.valueTo ?? '')}
-                          onChange={(e) =>
+
+                      <div className="flex justify-end lg:justify-center lg:pb-0.5">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                          title="Remove rule"
+                          aria-label="Remove rule"
+                          onClick={() =>
                             setDraftFilters((prev) => ({
                               ...prev,
-                              rules: prev.rules.map((r) =>
-                                r.id === rule.id
-                                  ? { ...r, valueTo: field?.type === 'number' ? Number(e.target.value) : e.target.value }
-                                  : r,
-                              ),
+                              rules: prev.rules.filter((r) => r.id !== rule.id),
                             }))
                           }
-                        />
-                      ) : null}
-                    </>
-                  ) : (
-                    <div className="md:col-span-3" />
-                  )}
-                  <Button
-                    variant="outline"
-                    size="icon-sm"
-                    className="md:col-span-1"
-                    onClick={() =>
-                      setDraftFilters((prev) => ({
-                        ...prev,
-                        rules: prev.rules.filter((r) => r.id !== rule.id),
-                      }))
-                    }
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              );
-            })}
-            <Button
-              variant="outline"
-              onClick={() =>
-                setDraftFilters((prev) => ({
-                  ...prev,
-                  rules: [
-                    ...prev.rules,
-                    {
-                      id: crypto.randomUUID(),
-                      field: filterFields[0]?.id ?? '',
-                      op: operatorOptions[filterFields[0]?.type ?? 'string'][0],
-                      value: '',
-                    },
-                  ],
-                }))
-              }
-              disabled={filterFields.length === 0}
-            >
-              <Plus className="h-4 w-4" />
-              Add rule
-            </Button>
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full border-dashed border-border/80 bg-muted/10 py-6 text-sm font-semibold hover:bg-muted/25"
+                onClick={() =>
+                  setDraftFilters((prev) => ({
+                    ...prev,
+                    rules: [
+                      ...prev.rules,
+                      {
+                        id: crypto.randomUUID(),
+                        field: filterFields[0]?.id ?? '',
+                        op: operatorOptions[filterFields[0]?.type ?? 'string'][0],
+                        value: '',
+                      },
+                    ],
+                  }))
+                }
+                disabled={filterFields.length === 0}
+              >
+                <Plus className="h-4 w-4" strokeWidth={2.25} />
+                Add rule
+              </Button>
+            </div>
           </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setDraftFilters({ logic: 'AND', rules: [] });
-                onFiltersChange?.(undefined);
-              }}
-            >
-              Clear all
+
+          <DialogFooter className="gap-3 border-t border-border/60 bg-muted/25 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <Button type="button" variant="ghost" className="text-muted-foreground sm:mr-auto" onClick={() => setIsFilterDialogOpen(false)}>
+              Cancel
             </Button>
-            <Button
-              onClick={() => {
-                const cleaned = draftFilters.rules.filter((rule) => rule.field && (rule.op === 'is_true' || rule.op === 'is_false' || rule.value !== '' && rule.value !== undefined));
-                onFiltersChange?.(cleaned.length ? { logic: draftFilters.logic, rules: cleaned } : undefined);
-                onQueryChange({ page: 1 });
-                setIsFilterDialogOpen(false);
-              }}
-            >
-              Apply filters
-            </Button>
+            <div className="flex flex-wrap justify-end gap-2 sm:gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                className="border-border/80"
+                onClick={() => {
+                  setDraftFilters({ logic: 'AND', rules: [] });
+                  onFiltersChange?.(undefined);
+                }}
+              >
+                Clear all
+              </Button>
+              <Button
+                type="button"
+                className="min-w-[140px] shadow-md"
+                onClick={() => {
+                  const cleaned = draftFilters.rules.filter(
+                    (rule) =>
+                      rule.field &&
+                      (rule.op === 'is_true' ||
+                        rule.op === 'is_false' ||
+                        (rule.value !== '' && rule.value !== undefined)),
+                  );
+                  onFiltersChange?.(
+                    cleaned.length ? { logic: draftFilters.logic, rules: cleaned } : undefined,
+                  );
+                  onQueryChange({ page: 1 });
+                  setIsFilterDialogOpen(false);
+                }}
+              >
+                Apply filters
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Check, Copy } from 'lucide-react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { Check, Copy, MapPin, UserRound } from 'lucide-react';
 import {
   formatPaymentCollectionDisplayLabel,
   formatPersistedDiscountCaption,
@@ -11,6 +11,7 @@ import {
   type SupportOrderDetails,
 } from '@wrap-roll/contracts';
 import { getOrderItemModifierDisplayLines, isModifierLinePriority } from '@wrap-roll/order-kit';
+import { cn } from '../lib/utils';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 
@@ -111,6 +112,17 @@ function CopyInline({
   );
 }
 
+function DetailField({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1 border-b border-neutral-100 py-2.5 last:border-b-0 sm:flex-row sm:items-baseline sm:gap-3 sm:py-2">
+      <span className="shrink-0 text-[11px] font-semibold uppercase tracking-wide text-neutral-500 sm:w-36">
+        {label}
+      </span>
+      <div className="min-w-0 flex-1 text-sm leading-snug text-neutral-900">{children}</div>
+    </div>
+  );
+}
+
 export function OrderDetailsModal({
   open,
   onOpenChange,
@@ -147,6 +159,8 @@ export function OrderDetailsModal({
 
   const resolvedStatus = toTitleWords(details?.status ?? order.status ?? '-');
   const resolvedFulfillment = toTitleWords(details?.fulfillmentType ?? order.fulfillmentType ?? '-');
+  const fulfillmentRaw = String(details?.fulfillmentType ?? order.fulfillmentType ?? '').toLowerCase();
+  const isDeliveryOrder = fulfillmentRaw === 'delivery';
   const resolvedPaymentCollection = formatPaymentCollectionDisplayLabel(
     details?.paymentCollection ?? order.paymentCollection ?? 'immediate',
     details?.fulfillmentType ?? order.fulfillmentType,
@@ -207,9 +221,9 @@ export function OrderDetailsModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton
-        className="overflow-hidden border-0 bg-white p-0 shadow-[0_32px_120px_-40px_rgba(15,23,42,0.45)] sm:max-w-4xl sm:rounded-[28px]"
+        className="flex max-h-[min(92vh,900px)] flex-col overflow-hidden border-0 bg-white p-0 shadow-[0_32px_120px_-40px_rgba(15,23,42,0.45)] sm:max-w-4xl sm:rounded-[28px]"
       >
-        <DialogHeader className="border-b border-neutral-100 bg-gradient-to-r from-primary/[0.08] via-white to-primary/[0.04] px-6 py-5 text-left sm:px-8">
+        <DialogHeader className="shrink-0 border-b border-neutral-100 bg-gradient-to-r from-primary/[0.08] via-white to-primary/[0.04] px-6 py-5 text-left sm:px-8">
           <DialogTitle className="font-display text-2xl font-black tracking-tight text-neutral-900">
             Order details
           </DialogTitle>
@@ -218,7 +232,7 @@ export function OrderDetailsModal({
           </p>
         </DialogHeader>
 
-        <div className="max-h-[calc(88vh-92px)] space-y-5 overflow-y-auto bg-neutral-50/40 px-6 py-6 sm:px-8 sm:py-7">
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto bg-neutral-50/40 px-6 py-6 sm:px-8 sm:py-7">
           <div className="rounded-2xl border border-primary/15 bg-white p-5 shadow-sm">
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <span className="rounded-full bg-primary/10 px-3 py-1 text-[11px] font-semibold text-primary">
@@ -265,25 +279,40 @@ export function OrderDetailsModal({
             </div>
           </div>
 
-          <div className="rounded-xl border bg-white p-1">
+          <div className="rounded-xl border border-neutral-200/80 bg-white p-1 shadow-sm">
             <div className="grid grid-cols-3 gap-1">
               <button
                 type="button"
-                className={`rounded-lg px-3 py-2 text-xs font-black ${tab === 'overview' ? 'bg-primary text-white' : 'text-slate-600'}`}
+                className={cn(
+                  'rounded-lg px-3 py-2 text-xs font-semibold transition-colors',
+                  tab === 'overview'
+                    ? 'bg-primary text-white shadow-sm'
+                    : 'text-neutral-600 hover:bg-neutral-50',
+                )}
                 onClick={() => setTab('overview')}
               >
                 Overview
               </button>
               <button
                 type="button"
-                className={`rounded-lg px-3 py-2 text-xs font-black ${tab === 'items' ? 'bg-primary text-white' : 'text-slate-600'}`}
+                className={cn(
+                  'rounded-lg px-3 py-2 text-xs font-semibold transition-colors',
+                  tab === 'items'
+                    ? 'bg-primary text-white shadow-sm'
+                    : 'text-neutral-600 hover:bg-neutral-50',
+                )}
                 onClick={() => setTab('items')}
               >
                 Items
               </button>
               <button
                 type="button"
-                className={`rounded-lg px-3 py-2 text-xs font-black ${tab === 'timeline' ? 'bg-primary text-white' : 'text-slate-600'}`}
+                className={cn(
+                  'rounded-lg px-3 py-2 text-xs font-semibold transition-colors',
+                  tab === 'timeline'
+                    ? 'bg-primary text-white shadow-sm'
+                    : 'text-neutral-600 hover:bg-neutral-50',
+                )}
                 onClick={() => setTab('timeline')}
               >
                 Activity log
@@ -294,85 +323,105 @@ export function OrderDetailsModal({
           {loading ? <p className="text-xs text-muted-foreground">Loading full order details...</p> : null}
 
           {tab === 'overview' ? (
-            <div className="grid gap-4 lg:grid-cols-2">
-              <div className="rounded-2xl border bg-white p-5 shadow-sm">
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-neutral-800">Customer and fulfillment</p>
-                </div>
-                <div className="space-y-1.5 text-sm text-neutral-700">
-                  <p><strong>Source:</strong> {details?.source ?? order.source ?? '-'}</p>
-                  <p>
-                    <strong>Client:</strong> {clientName}{' '}
-                    {clientPhone !== '-' ? `(${clientPhone})` : ''}
-                  </p>
-                  <p>
-                    <strong>Phone:</strong> {clientPhone}{' '}
-                    <CopyInline
-                      label="client phone"
-                      copied={copiedKey === 'client-phone'}
-                      onCopy={() => void copyText('client-phone', clientPhone)}
-                    />
-                  </p>
-                  <p>
-                    <strong>Address:</strong> {resolvedAddress}{' '}
-                    <CopyInline
-                      label="delivery address"
-                      copied={copiedKey === 'address'}
-                      onCopy={() => void copyText('address', resolvedAddress)}
-                    />
-                  </p>
-                  <p><strong>Table:</strong> {resolvedTable}</p>
-                  <p>
-                    <strong>Kitchen:</strong> {resolvedKitchenName}{' '}
+            <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
+              <div className="rounded-2xl border border-neutral-200/90 bg-white p-5 shadow-sm">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                  Customer & fulfillment
+                </p>
+                <div className="rounded-xl border border-neutral-100 bg-neutral-50/40 px-1">
+                  <DetailField label="Source">{details?.source ?? order.source ?? '-'}</DetailField>
+                  <DetailField label="Fulfillment">{resolvedFulfillment}</DetailField>
+                  <DetailField label={isDeliveryOrder ? 'Delivery status' : 'Order status'}>
+                    {resolvedStatus}
+                  </DetailField>
+                  <DetailField label="Client">
+                    {clientName}
+                    {clientPhone !== '-' ? (
+                      <span className="text-neutral-500"> · {clientPhone}</span>
+                    ) : null}
+                  </DetailField>
+                  <DetailField label="Phone">
+                    <span className="inline-flex flex-wrap items-center gap-1">
+                      {clientPhone}
+                      <CopyInline
+                        label="client phone"
+                        copied={copiedKey === 'client-phone'}
+                        onCopy={() => void copyText('client-phone', clientPhone)}
+                      />
+                    </span>
+                  </DetailField>
+                  <DetailField label="Address">
+                    <span className="inline-flex flex-wrap items-center gap-1">
+                      {resolvedAddress}
+                      <CopyInline
+                        label="delivery address"
+                        copied={copiedKey === 'address'}
+                        onCopy={() => void copyText('address', resolvedAddress)}
+                      />
+                    </span>
+                  </DetailField>
+                  <DetailField label="Table">{resolvedTable}</DetailField>
+                  <DetailField label="Kitchen">
+                    {resolvedKitchenName}{' '}
                     {resolvedKitchenRef !== '-' ? (
-                      <span className="text-[11px] text-neutral-400">
-                        ({shortRef(resolvedKitchenRef)})
-                      </span>
+                      <span className="text-[11px] text-neutral-400">({shortRef(resolvedKitchenRef)})</span>
                     ) : null}
-                  </p>
-                  <p>
-                    <strong>Cashier:</strong> {resolvedCashierName}{' '}
+                  </DetailField>
+                  <DetailField label="Cashier">
+                    {resolvedCashierName}{' '}
                     {resolvedCashierRef !== '-' ? (
-                      <span className="text-[11px] text-neutral-400">
-                        ({shortRef(resolvedCashierRef)})
-                      </span>
+                      <span className="text-[11px] text-neutral-400">({shortRef(resolvedCashierRef)})</span>
                     ) : null}
-                  </p>
-                  <p>
-                    <strong>Courier:</strong> {resolvedCourierName}{' '}
+                  </DetailField>
+                  <DetailField label="Courier">
+                    {resolvedCourierName}{' '}
                     {resolvedCourierRef !== '-' ? (
-                      <span className="text-[11px] text-neutral-400">
-                        ({shortRef(resolvedCourierRef)})
-                      </span>
+                      <span className="text-[11px] text-neutral-400">({shortRef(resolvedCourierRef)})</span>
                     ) : null}
-                  </p>
-                  <p><strong>Scheduled:</strong> {fmtDate(details?.estimatedReadyTime ?? order.estimatedReadyTime) === '-' ? 'ASAP' : fmtDate(details?.estimatedReadyTime ?? order.estimatedReadyTime)}</p>
-                  <p><strong>Placed:</strong> {fmtDate(details?.placedAt ?? order.placedAt)}</p>
-                  <p><strong>Updated:</strong> {fmtDate(details?.updatedAt ?? order.updatedAt)}</p>
+                  </DetailField>
+                  <DetailField label="Scheduled">
+                    {fmtDate(details?.estimatedReadyTime ?? order.estimatedReadyTime) === '-'
+                      ? 'ASAP'
+                      : fmtDate(details?.estimatedReadyTime ?? order.estimatedReadyTime)}
+                  </DetailField>
+                  <DetailField label="Placed">{fmtDate(details?.placedAt ?? order.placedAt)}</DetailField>
+                  <DetailField label="Updated">{fmtDate(details?.updatedAt ?? order.updatedAt)}</DetailField>
                 </div>
               </div>
 
-              <div className="rounded-2xl border bg-white p-5 shadow-sm">
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-neutral-800">Payment and totals</p>
-                </div>
-                <div className="space-y-1.5 text-sm text-neutral-700">
-                  <p>
-                    <strong>Payment method:</strong>{' '}
+              <div className="rounded-2xl border border-neutral-200/90 bg-white p-5 shadow-sm">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                  Payment & totals
+                </p>
+                <div className="rounded-xl border border-neutral-100 bg-neutral-50/40 px-1">
+                  <DetailField label="Payment method">
                     {formatStaffPaymentMethodLabel(details?.paymentMethod ?? order.paymentMethod ?? '-')}
-                  </p>
-                  <p><strong>Payment status:</strong> {details?.paymentStatus ?? order.paymentStatus ?? '-'}</p>
-                  <p><strong>Total:</strong> {fmtMoney(details?.total ?? order.total)}</p>
-                  <p><strong>Subtotal:</strong> {fmtMoney((details as any)?.subtotal ?? order.subtotal ?? 0)}</p>
-                  <p>
-                    <strong>Discount:</strong>{' '}
-                    {fmtMoney((details as any)?.discountAmount ?? order.discountAmount ?? 0)}
+                  </DetailField>
+                  <DetailField label="Payment status">
+                    {details?.paymentStatus ?? order.paymentStatus ?? '-'}
+                  </DetailField>
+                  <DetailField label="Subtotal">
+                    {fmtMoney(details?.subtotal ?? order.subtotal ?? 0)}
+                  </DetailField>
+                  <DetailField label="Discount">
+                    {fmtMoney(details?.discountAmount ?? order.discountAmount ?? 0)}
                     {discountCaption ? (
                       <span className="text-neutral-500"> ({discountCaption})</span>
                     ) : null}
-                  </p>
-                  <p><strong>Tax:</strong> {fmtMoney((details as any)?.tax ?? order.tax ?? 0)}</p>
-                  <p><strong>Delivery fee:</strong> {fmtMoney((details as any)?.deliveryFee ?? order.deliveryFee ?? 0)}</p>
+                  </DetailField>
+                  <DetailField label="Tax">
+                    {fmtMoney(details?.tax ?? order.tax ?? 0)}
+                  </DetailField>
+                  <DetailField label="Delivery fee">
+                    {fmtMoney(details?.deliveryFee ?? order.deliveryFee ?? 0)}
+                  </DetailField>
+                  <div className="mt-1 border-t border-neutral-200 pt-1">
+                    <DetailField label="Total">
+                      <span className="font-semibold tabular-nums text-neutral-900">
+                        {fmtMoney(details?.total ?? order.total)}
+                      </span>
+                    </DetailField>
+                  </div>
                 </div>
               </div>
             </div>
@@ -440,19 +489,35 @@ export function OrderDetailsModal({
               </div>
             )
           ) : null}
+        </div>
 
-          <div className="grid gap-2 md:grid-cols-2">
-            <Button type="button" variant="outline" onClick={onEditCustomer}>
-              Edit customer
-            </Button>
-            <div className="grid grid-cols-2 gap-2">
-              <Button type="button" variant="outline" onClick={onEditFulfillment}>
+        <div className="shrink-0 border-t border-neutral-200 bg-gradient-to-b from-neutral-50/60 to-white px-6 py-4 sm:px-8">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="gap-2 font-semibold shadow-sm"
+                onClick={onEditCustomer}
+              >
+                <UserRound className="h-4 w-4 opacity-80" aria-hidden />
+                Edit customer
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="gap-2 font-semibold shadow-sm"
+                onClick={onEditFulfillment}
+              >
+                <MapPin className="h-4 w-4 opacity-80" aria-hidden />
                 Edit fulfillment
               </Button>
-              <div className="flex items-center justify-end pr-2 text-xs text-muted-foreground">
-                Copy fields where needed.
-              </div>
             </div>
+            <p className="text-[11px] text-neutral-500">
+              Tip: use the copy icons beside phone & address in Overview.
+            </p>
           </div>
         </div>
       </DialogContent>

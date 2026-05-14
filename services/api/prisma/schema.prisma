@@ -63,6 +63,17 @@ enum Availability {
   limited
 }
 
+enum MenuItemReviewVisibility {
+  pending
+  public
+  hidden
+}
+
+enum MenuItemReviewReplyAuthorKind {
+  customer
+  staff
+}
+
 enum IngredientUnit {
   g
   ml
@@ -122,6 +133,8 @@ model Customer {
   orders           Order[]
   addresses        CustomerAddress[]
   savedPayments    SavedPaymentToken[]
+  menuItemReviews  MenuItemReview[]
+  reviewReplies    MenuItemReviewReply[]
 }
 
 // ─── Vault Engine ────────────────────────────────────────────────────────────
@@ -263,6 +276,7 @@ model Order {
   items     OrderItem[]
   cogsLines OrderCogsLine[]
   paymentEvents PaymentEvent[]
+  menuItemReviews MenuItemReview[]
 
   @@index([placedByUserId, placedAt])
   @@index([status, placedAt(sort: Desc)])
@@ -374,10 +388,72 @@ model MenuItem {
   // Modifier config (stored as JSON — shape defined in libs/contracts)
   modifierGroupsJson Json
 
+  /// Average of **public** reviews only; maintained by API when reviews change
+  averageRating Decimal? @db.Decimal(4, 2)
+  reviewCount   Int      @default(0)
+
   orderItems   OrderItem[]
   recipes      RecipeIngredient[]
   cogsLines    OrderCogsLine[]
   optionIngredientDeltas MenuModifierOptionIngredientDelta[]
+  menuItemReviews MenuItemReview[]
+}
+
+/// One review per customer per order per menu item (verified purchase).
+model MenuItemReview {
+  id           String                   @id @default(uuid())
+  menuItemId   String
+  menuItem     MenuItem                 @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  orderId      String
+  order        Order                    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  customerId   String
+  customer     Customer                 @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  rating       Int
+  comment      String?
+  /// HTTPS or data:image URLs (same rules as menu photos); max length enforced in API
+  photoUrls    Json                     @default("[]")
+  visibility   MenuItemReviewVisibility @default(pending)
+  adminNote    String?
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
+
+  replies     MenuItemReviewReply[]
+  reactions   MenuItemReviewReaction[]
+
+  @@unique([customerId, orderId, menuItemId])
+  @@index([menuItemId, createdAt(sort: Desc)])
+  @@index([customerId, createdAt(sort: Desc)])
+  @@index([visibility, createdAt(sort: Desc)])
+}
+
+/// Threaded replies on **public** reviews (customers + staff).
+model MenuItemReviewReply {
+  id          String                       @id @default(uuid())
+  reviewId    String
+  review      MenuItemReview               @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  authorKind  MenuItemReviewReplyAuthorKind
+  customerId  String?
+  customer    Customer?                    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  staffUserId String?
+  authorLabel String
+  body        String                       @db.VarChar(2000)
+  /// HTTPS or data:image URLs (same rules as review photos)
+  photoUrls   Json                         @default("[]")
+  createdAt   DateTime                     @default(now())
+
+  @@index([reviewId, createdAt])
+}
+
+/// One reaction per actor per review (toggle via API). `actorKey` is `c:<customerId>` or `s:<staffSub>`.
+model MenuItemReviewReaction {
+  id        String         @id @default(uuid())
+  reviewId  String
+  review    MenuItemReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  actorKey  String
+  createdAt DateTime       @default(now())
+
+  @@unique([reviewId, actorKey])
+  @@index([reviewId])
 }
 
 model MenuCategory {

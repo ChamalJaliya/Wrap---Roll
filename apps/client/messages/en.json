@@ -23,6 +23,7 @@
     "selectLanguage": "Select Language",
     "account": "Account",
     "myProfile": "My Profile",
+    "orderHistory": "Order History",
     "settings": "Settings",
     "logOut": "Log Out",
     "signIn": "Sign In",
@@ -192,6 +193,11 @@
     "quote": "Gourmet at hand, street at heart."
   },
   "Contact": {
+    "heroEyebrow": "We are here",
+    "visitKicker": "Visit",
+    "visitCardLead": "Hours, phone, and email — save us for your next order.",
+    "messageKicker": "Message",
+    "formCardLead": "We read every note — catering, feedback, or partnerships.",
     "title": "Let's Spice Things Up.",
     "lead": "Have a question about our secret sauce or looking for a catering partner? We'd love to hear from you.",
     "visitTitle": "Visit our kitchen",

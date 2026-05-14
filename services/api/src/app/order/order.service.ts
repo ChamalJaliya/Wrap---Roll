@@ -72,6 +72,7 @@ import { OutboxService } from '../outbox/outbox.service';
 import { INVENTORY_JOB } from '../inventory/inventory.constants';
 import { NOTIFICATION_JOB } from '../notification/notification.constants';
 import { PRINT_JOB } from '../print/print.constants';
+import { serverLocalCalendarDayBounds } from '../../common/server-local-calendar';
 
 type BusinessSettingsScheduleSlice = {
   paymentJson: unknown;
@@ -1769,16 +1770,120 @@ export class OrderService {
     return { order: updated, collectionApplied: true, collectedMethod: method };
   }
 
-  async getOrders(status?: string, fulfillmentType?: string): Promise<unknown[]> {
+  /**
+   * ADMIN dashboard only: today's orders (server TZ), always paginated JSON shape.
+   * Avoids relying on generic GET /orders query combos that older clients may call without filters.
+   */
+  async getAdminDashboardOrdersPaginated(page: number, limit: number): Promise<{
+    items: unknown[];
+    total: number;
+    page: number;
+    limit: number;
+    hasMore: boolean;
+  }> {
+    const { start, end } = serverLocalCalendarDayBounds();
+    const where = { placedAt: { gte: start, lte: end } };
+    const include = { items: true, customer: true } as const;
+    const orderBy = { placedAt: 'desc' as const };
+
+    const safePage = Math.max(1, Math.floor(page));
+    const safeLimit = Math.min(100, Math.max(1, Math.floor(limit)));
+    const skip = (safePage - 1) * safeLimit;
+
+    const [items, total] = await Promise.all([
+      this.prisma.order.findMany({
+        where,
+        include,
+        orderBy,
+        skip,
+        take: safeLimit,
+      }),
+      this.prisma.order.count({ where }),
+    ]);
+
+    return {
+      items,
+      total,
+      page: safePage,
+      limit: safeLimit,
+      hasMore: skip + items.length < total,
+    };
+  }
+
+  async getOrders(
+    status?: string,
+    fulfillmentType?: string,
+    page?: number,
+    limit?: number,
+    placedOn?: string,
+    scope?: string,
+  ): Promise<
+    | unknown[]
+    | {
+        items: unknown[];
+        total: number;
+        page: number;
+        limit: number;
+        hasMore: boolean;
+      }
+  > {
     const statusArray = status ? status.split(',') : [];
     const where: any =
       statusArray.length > 0 ? { status: { in: statusArray as OrderStatus[] } } : {};
     if (fulfillmentType) where.fulfillmentType = fulfillmentType;
-    return this.prisma.order.findMany({
-      where,
-      include: { items: true, customer: true },
-      orderBy: { placedAt: 'desc' },
-    });
+
+    if (placedOn?.trim()) {
+      const target = new Date(placedOn.trim());
+      if (!Number.isNaN(target.getTime())) {
+        const { start, end } = serverLocalCalendarDayBounds(target);
+        where.placedAt = { gte: start, lte: end };
+      }
+    } else if (scope?.trim().toLowerCase() === 'today') {
+      const { start, end } = serverLocalCalendarDayBounds();
+      where.placedAt = { gte: start, lte: end };
+    }
+
+    const include = { items: true, customer: true } as const;
+    const orderBy = { placedAt: 'desc' as const };
+
+    const parsedPage = Number(page);
+    const parsedLimit = Number(limit);
+    const usePagination =
+      Number.isFinite(parsedPage) &&
+      parsedPage > 0 &&
+      Number.isFinite(parsedLimit) &&
+      parsedLimit > 0;
+
+    if (!usePagination) {
+      return this.prisma.order.findMany({
+        where,
+        include,
+        orderBy,
+      });
+    }
+
+    const safePage = Math.max(1, Math.floor(parsedPage));
+    const safeLimit = Math.min(100, Math.max(1, Math.floor(parsedLimit)));
+    const skip = (safePage - 1) * safeLimit;
+
+    const [items, total] = await Promise.all([
+      this.prisma.order.findMany({
+        where,
+        include,
+        orderBy,
+        skip,
+        take: safeLimit,
+      }),
+      this.prisma.order.count({ where }),
+    ]);
+
+    return {
+      items,
+      total,
+      page: safePage,
+      limit: safeLimit,
+      hasMore: skip + items.length < total,
+    };
   }
 
   async getQueue(

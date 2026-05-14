@@ -18,7 +18,9 @@ import {
   parseNestProxyErrorDetail,
   staffNotificationSummaryLine,
 } from '@wrap-roll/contracts';
-import { Button, DataPanel, EmptyState, PageHeader, PageStack } from '@wrap-roll/shared-ui';
+import { Button, DataPanel, EmptyState, PageStack } from '@wrap-roll/shared-ui';
+import { AdminPageHeader } from '../../components/AdminPageHeader';
+import { adminPageContainerClass, adminPageRootClass } from '../../lib/admin-ui-contract';
 
 function fmtDate(value: unknown): string {
   if (!value) return '-';
@@ -138,10 +140,15 @@ export default function AdminNotificationsPage() {
   };
 
   return (
-    <PageStack>
-      <PageHeader title={NOTIFICATION_PAGE_COPY.pageTitle} description={NOTIFICATION_PAGE_COPY.pageDescription} />
+    <div className={adminPageRootClass}>
+      <div className={adminPageContainerClass}>
+        <PageStack>
+          <AdminPageHeader
+            title={NOTIFICATION_PAGE_COPY.pageTitle}
+            description={NOTIFICATION_PAGE_COPY.pageDescription}
+          />
 
-      <div className="grid gap-6 lg:grid-cols-2">
+          <div className="grid gap-6 lg:grid-cols-2">
         <DataPanel>
           <div className="mb-3 flex items-center justify-between gap-2">
             <h2 className="text-base font-semibold text-foreground">{NOTIFICATION_PAGE_COPY.smsLogHeading}</h2>
@@ -289,7 +296,9 @@ export default function AdminNotificationsPage() {
             </ul>
           ) : null}
         </DataPanel>
+          </div>
+        </PageStack>
       </div>
-    </PageStack>
+    </div>
   );
 }

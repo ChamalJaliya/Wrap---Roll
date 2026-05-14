@@ -20,14 +20,33 @@ export const clientMaxWideClass = 'mx-auto w-full max-w-5xl px-4';
 
 export const clientMaxMenuClass = 'mx-auto w-full max-w-6xl px-4 sm:px-8';
 
-/** Full section: width + vertical rhythm */
-export const clientContentNarrowClass = cn(
-  clientMaxNarrowClass,
-  'py-16 sm:py-20 md:py-24',
-);
+/** Inset content column (account, purchases, track, marketing inner pages) */
+export const clientAccountStackClass = 'mx-auto w-full max-w-6xl space-y-8 pb-16 pt-8';
+
+/** Rounded white section cards (profile, purchases, track, contact) */
+export const clientElevatedCardClass =
+  'overflow-hidden rounded-3xl border border-neutral-200/80 bg-white shadow-[0_20px_60px_-40px_rgba(15,23,42,0.2)] ring-1 ring-black/[0.03]';
+
+export const clientElevatedCardHeaderClass =
+  'border-b border-neutral-100 bg-neutral-50/80 px-6 py-5 sm:px-8';
+
+/** Dark gradient hero band (account / orders / settings pattern) */
+export const clientHeroGradientShellClass =
+  'relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-neutral-950 via-neutral-900 to-orange-950 px-6 py-10 text-white shadow-[0_32px_100px_-40px_rgba(0,0,0,0.55)] sm:px-10 sm:py-12';
+
+export const clientHeroGradientOrbClass =
+  'pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-orange-500/25 blur-3xl';
+
+export const clientHeroGradientOrbSecondaryClass =
+  'pointer-events-none absolute -bottom-16 left-1/4 h-48 w-48 rounded-full bg-amber-400/10 blur-2xl';
 
 export const clientContentWideClass = cn(
   clientMaxWideClass,
+  'py-16 sm:py-20 md:py-24',
+);
+
+export const clientContentNarrowClass = cn(
+  clientMaxNarrowClass,
   'py-16 sm:py-20 md:py-24',
 );
 

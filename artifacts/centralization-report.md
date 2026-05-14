@@ -1,6 +1,6 @@
 # Centralization Lint Report
 
-Mode: strict
+Mode: warning
 
 No violations found.
 
@@ -19,7 +19,7 @@ No violations found.
   - Found 5 inline object type declaration(s) in page file.
   - Suggested next: Extract page contracts into app lib modules (e.g. apps/*/src/lib/*-contract.ts).
 - [inline-contract-type-in-page] `apps/admin/src/app/orders/page.tsx`
-  - Found 1 inline object type declaration(s) in page file.
+  - Found 4 inline object type declaration(s) in page file.
   - Suggested next: Extract page contracts into app lib modules (e.g. apps/*/src/lib/*-contract.ts).
 - [inline-contract-type-in-page] `apps/admin/src/app/pricing/page.tsx`
   - Found 2 inline object type declaration(s) in page file.

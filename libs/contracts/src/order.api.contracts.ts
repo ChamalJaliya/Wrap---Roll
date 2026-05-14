@@ -221,6 +221,16 @@ export type OpsActivityFeedPage = {
   nextCursor: string | null;
 };
 
+/** `POST /activity/purge` — bulk-delete ops activity older than a cutoff (admin only). */
+export type ActivityPurgeResult = {
+  deleted: number;
+};
+
+/** `GET /activity/count-before` — rows that would be removed by purge with the same `before` cutoff. */
+export type ActivityCountBeforeResult = {
+  count: number;
+};
+
 /** SMS/email delivery audit row (`GET /notifications/deliveries`). */
 export type NotificationDeliveryRow = {
   id: string;

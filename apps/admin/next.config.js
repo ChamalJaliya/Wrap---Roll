@@ -10,6 +10,13 @@ const nextConfig = {
   // Use this to set Nx-specific options
   // See: https://nx.dev/recipes/next/next-config-setup
   nx: {},
+  /**
+   * If anything calls `/api/admin/*` instead of the Nest proxy prefix `/api/nest/*`,
+   * rewrite so the App Route proxy still reaches Nest (`/api` global prefix + `admin/...`).
+   */
+  async rewrites() {
+    return [{ source: '/api/admin/:path*', destination: '/api/nest/admin/:path*' }];
+  },
 };
 
 const plugins = [

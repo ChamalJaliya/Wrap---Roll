@@ -13,7 +13,6 @@ import {
   Label,
   MetricCard,
   NativeSelect,
-  PageHeader,
   PageStack,
   SharedDataGrid,
   SharedDataGridColumn,
@@ -26,6 +25,8 @@ import {
   TableHeader,
   TableRow,
 } from '@wrap-roll/shared-ui';
+import { AdminPageHeader } from '../../components/AdminPageHeader';
+import { adminPageContainerClass, adminPageRootClass } from '../../lib/admin-ui-contract';
 
 type StaffUser = {
   id: string;
@@ -357,16 +358,18 @@ export default function StaffPage() {
   }, [query.role, query.isActive]);
 
   return (
-    <PageStack>
-      <PageHeader
-        title="Staff Management"
-        description="Provision and manage cashier, kitchen, courier, and admin access."
-        actions={
-          <Button variant="outline" onClick={fetchStaff} disabled={loading}>
-            {loading ? 'Refreshing...' : 'Refresh'}
-          </Button>
-        }
-      />
+    <div className={adminPageRootClass}>
+      <div className={adminPageContainerClass}>
+        <PageStack>
+          <AdminPageHeader
+            title="Staff Management"
+            description="Provision and manage cashier, kitchen, courier, and admin access."
+            actions={
+              <Button variant="outline" onClick={fetchStaff} disabled={loading}>
+                {loading ? 'Refreshing...' : 'Refresh'}
+              </Button>
+            }
+          />
 
       {error ? (
         <p className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
@@ -395,62 +398,80 @@ export default function StaffPage() {
 
       <DataPanel>
         <h3 className="mb-4 text-lg font-bold">Create operational user</h3>
-        <form onSubmit={createStaffUser} className="grid grid-cols-1 gap-3 md:grid-cols-5">
-          <div className="space-y-1">
-            <Label htmlFor="staff-full-name">Full name</Label>
-            <Input
-              id="staff-full-name"
-              placeholder="Full name"
-              value={newUser.fullName}
-              onChange={(e) => setNewUser((prev) => ({ ...prev, fullName: e.target.value }))}
-              required
-            />
+        <form
+          onSubmit={createStaffUser}
+          className="flex flex-col gap-6 [&_input:-webkit-autofill]:shadow-[inset_0_0_0_1000px_hsl(var(--background))] [&_input:-webkit-autofill]:[-webkit-text-fill-color:hsl(var(--foreground))]"
+        >
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 xl:items-end">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="staff-full-name">Full name</Label>
+              <Input
+                id="staff-full-name"
+                className="h-10"
+                placeholder="Full name"
+                autoComplete="name"
+                value={newUser.fullName}
+                onChange={(e) => setNewUser((prev) => ({ ...prev, fullName: e.target.value }))}
+                required
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="staff-email">Email</Label>
+              <Input
+                id="staff-email"
+                className="h-10"
+                type="email"
+                placeholder="user@wrapnroll.com"
+                autoComplete="email"
+                value={newUser.email}
+                onChange={(e) => setNewUser((prev) => ({ ...prev, email: e.target.value }))}
+                required
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="staff-password">Password</Label>
+              <Input
+                id="staff-password"
+                className="h-10"
+                type="password"
+                placeholder="Temporary password"
+                autoComplete="new-password"
+                value={newUser.password}
+                onChange={(e) => setNewUser((prev) => ({ ...prev, password: e.target.value }))}
+                required
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="staff-role">Role</Label>
+              <NativeSelect
+                id="staff-role"
+                className="h-10 min-h-10 py-2"
+                value={newUser.role}
+                onChange={(e) =>
+                  setNewUser((prev) => ({ ...prev, role: e.target.value as StaffRole }))
+                }
+              >
+                <option value="CASHIER">Cashier</option>
+                <option value="KITCHEN">Kitchen (Chef)</option>
+                <option value="COURIER">Delivery (Courier)</option>
+                <option value="ADMIN">Admin</option>
+              </NativeSelect>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="staff-phone">Phone (optional)</Label>
+              <Input
+                id="staff-phone"
+                className="h-10"
+                type="tel"
+                placeholder="+94 7X XXX XXXX"
+                autoComplete="tel"
+                value={newUser.phone}
+                onChange={(e) => setNewUser((prev) => ({ ...prev, phone: e.target.value }))}
+              />
+            </div>
           </div>
-          <div className="space-y-1">
-            <Label htmlFor="staff-email">Email</Label>
-            <Input
-              id="staff-email"
-              type="email"
-              placeholder="user@wrapnroll.com"
-              value={newUser.email}
-              onChange={(e) => setNewUser((prev) => ({ ...prev, email: e.target.value }))}
-              required
-            />
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="staff-password">Password</Label>
-            <Input
-              id="staff-password"
-              type="password"
-              placeholder="Temporary password"
-              value={newUser.password}
-              onChange={(e) => setNewUser((prev) => ({ ...prev, password: e.target.value }))}
-              required
-            />
-          </div>
-          <NativeSelect
-            label="Role"
-            value={newUser.role}
-            onChange={(e) =>
-              setNewUser((prev) => ({ ...prev, role: e.target.value as StaffRole }))
-            }
-          >
-            <option value="CASHIER">Cashier</option>
-            <option value="KITCHEN">Kitchen (Chef)</option>
-            <option value="COURIER">Delivery (Courier)</option>
-            <option value="ADMIN">Admin</option>
-          </NativeSelect>
-          <div className="space-y-1">
-            <Label htmlFor="staff-phone">Phone (optional)</Label>
-            <Input
-              id="staff-phone"
-              placeholder="+94 7X XXX XXXX"
-              value={newUser.phone}
-              onChange={(e) => setNewUser((prev) => ({ ...prev, phone: e.target.value }))}
-            />
-          </div>
-          <div className="md:col-span-5">
-            <Button type="submit" className="w-full md:w-auto" disabled={submitting}>
+          <div className="flex justify-end border-t border-border/70 pt-5">
+            <Button type="submit" className="h-10 min-w-[11rem]" disabled={submitting}>
               {submitting ? 'Creating...' : 'Create user'}
             </Button>
           </div>
@@ -621,6 +642,8 @@ export default function StaffPage() {
           </TableBody>
         </Table>
       </DataPanel>
-    </PageStack>
+        </PageStack>
+      </div>
+    </div>
   );
 }

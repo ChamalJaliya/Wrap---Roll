@@ -48,6 +48,10 @@ export function ClientShell({ children, locale }: ClientShellProps) {
     router.push(`/${locale}/profile`);
   };
 
+  const handleOrderHistoryClick = () => {
+    router.push(`/${locale}/profile/purchases`);
+  };
+
   const handleSettingsClick = () => {
     router.push(`/${locale}/profile`);
   };
@@ -82,6 +86,7 @@ export function ClientShell({ children, locale }: ClientShellProps) {
           selectLanguage: tNav('selectLanguage'),
           account: tNav('account'),
           myProfile: tNav('myProfile'),
+          orderHistory: tNav('orderHistory'),
           settings: tNav('settings'),
           logOut: tNav('logOut'),
           signIn: tNav('signIn'),
@@ -103,6 +108,7 @@ export function ClientShell({ children, locale }: ClientShellProps) {
         onSignIn={handleSignIn}
         onSignOut={handleSignOut}
         onProfileClick={handleProfileClick}
+        onOrderHistoryClick={handleOrderHistoryClick}
         onSettingsClick={handleSettingsClick}
         onLanguageChange={handleLanguageChange}
       />

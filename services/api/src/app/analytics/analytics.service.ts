@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { OrderSource } from '@prisma/client';
 import { computePeriodOverlapRatio } from '../inventory/inventory-costing.util';
+import { serverLocalCalendarDayBounds, serverLocalDateYmd } from '../../common/server-local-calendar';
 
 @Injectable()
 export class AnalyticsService {
@@ -17,10 +18,7 @@ export class AnalyticsService {
   }
 
   async getDailySalesReport(date: Date = new Date()) {
-    const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
+    const { start: startOfDay, end: endOfDay } = serverLocalCalendarDayBounds(date);
 
     const orders = await this.prisma.order.findMany({
       where: {
@@ -43,7 +41,7 @@ export class AnalyticsService {
     };
 
     return {
-      date: startOfDay.toISOString().split('T')[0],
+      date: serverLocalDateYmd(startOfDay),
       totalOrders,
       totalRevenue,
       avgTicketSize: Number(avgTicketSize.toFixed(2)),
@@ -70,7 +68,7 @@ export class AnalyticsService {
       const date = new Date(order.placedAt);
       
       if (grouping === 'daily') {
-        key = date.toISOString().split('T')[0];
+        key = serverLocalDateYmd(date);
       } else if (grouping === 'weekly') {
         // Simple week key: YYYY-WW
         const startOfYear = new Date(date.getFullYear(), 0, 1);
@@ -242,10 +240,7 @@ export class AnalyticsService {
   }
 
   async getPaymentReconciliation(date: Date = new Date()) {
-    const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
+    const { start: startOfDay, end: endOfDay } = serverLocalCalendarDayBounds(date);
 
     const orders = await this.prisma.order.findMany({
       where: {
@@ -316,7 +311,7 @@ export class AnalyticsService {
     card_collection.total_lkr = Number(cardTotalLkr.toFixed(2));
 
     return {
-      date: startOfDay.toISOString().split('T')[0],
+      date: serverLocalDateYmd(startOfDay),
       cash_pending_count: cashPending.length,
       cash_pending_amount: Number(
         cashPending.reduce((s, o) => s + Number(o.total), 0).toFixed(2),
@@ -331,10 +326,7 @@ export class AnalyticsService {
   }
 
   async getOrderPipeline() {
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date();
-    endOfDay.setHours(23, 59, 59, 999);
+    const { start: startOfDay, end: endOfDay } = serverLocalCalendarDayBounds(new Date());
 
     const grouped = await this.prisma.order.groupBy({
       by: ['status'],
@@ -371,7 +363,7 @@ export class AnalyticsService {
     const avgTicket = paidCount > 0 ? totalRevenue / paidCount : 0;
 
     return {
-      date: startOfDay.toISOString().split('T')[0],
+      date: serverLocalDateYmd(startOfDay),
       pipeline,
       totals: {
         totalToday,

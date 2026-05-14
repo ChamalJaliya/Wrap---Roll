@@ -1,9 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useLocale } from 'next-intl';
-import { CustomerApiService } from '../../../services/api';
+import { CustomerApiService } from '@/services/api';
 import {
   Button,
   Card,
@@ -13,17 +11,10 @@ import {
   EmptyState,
   FormToggleRow,
   InlineFormPanel,
-  PageHeroHeader,
   Input,
   Label,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
 } from '@wrap-roll/shared-ui';
-import type { CustomerAddress, CustomerHistoryOrder, SavedPaymentToken } from '@wrap-roll/contracts';
+import type { CustomerAddress, SavedPaymentToken } from '@wrap-roll/contracts';
 import { cn } from '@/lib/utils';
 import { surfaceInputClass } from '@/lib/client-field-styles';
 import {
@@ -42,17 +33,50 @@ import {
   type CardForm,
 } from '@/lib/client-profile-contract';
 import {
+  clientAccountStackClass,
   clientContentWideClass,
+  clientElevatedCardClass,
+  clientElevatedCardHeaderClass,
   clientFormLabelClass,
-  clientGlassPanelFlatClass,
   clientPageShellClass,
   clientSectionTitleClass,
 } from '@/lib/client-page-shell';
 
+function ProfileLoadingSkeleton() {
+  return (
+    <div
+      className={cn(clientPageShellClass, 'overflow-hidden')}
+      role="status"
+      aria-live="polite"
+      aria-label="Loading account settings"
+    >
+      <div className={clientContentWideClass}>
+        <div className={clientAccountStackClass}>
+          <div className="relative h-56 overflow-hidden rounded-3xl border border-neutral-800/30 bg-gradient-to-br from-neutral-900 to-neutral-950 sm:h-64">
+            <div className="space-y-4 p-8">
+              <div className="h-3 w-24 animate-pulse rounded bg-white/15" />
+              <div className="h-10 max-w-sm animate-pulse rounded-lg bg-white/12" />
+              <div className="h-4 max-w-xl animate-pulse rounded bg-white/10" />
+              <div className="mt-8 grid gap-3 sm:grid-cols-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-[4.75rem] animate-pulse rounded-2xl bg-white/10" />
+                ))}
+              </div>
+            </div>
+          </div>
+          {[1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="h-48 animate-pulse rounded-3xl border border-neutral-200/60 bg-neutral-100/50 sm:h-52"
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ProfilePage() {
-  const locale = useLocale();
-  const router = useRouter();
-  const [history, setHistory] = useState<CustomerHistoryOrder[]>([]);
   const [addresses, setAddresses] = useState<CustomerAddress[]>([]);
   const [savedCards, setSavedCards] = useState<SavedPaymentToken[]>([]);
   const [profileName, setProfileName] = useState('');
@@ -80,16 +104,14 @@ export default function ProfilePage() {
 
   const loadData = async () => {
     try {
-      const [profileRes, historyRes, addressBookRes, savedCardsRes] = await Promise.all([
+      const [profileRes, addressBookRes, savedCardsRes] = await Promise.all([
         CustomerApiService.getProfile().catch(() => null),
-        CustomerApiService.getHistory().catch(() => []),
         CustomerApiService.getAddressBook().catch(() => []),
         CustomerApiService.getSavedCards().catch(() => []),
       ]);
       const profileData = profileRes ?? null;
       setProfileName(String(profileData?.name ?? ''));
       setProfilePhone(String(profileData?.phone ?? ''));
-      setHistory(Array.isArray(historyRes) ? historyRes : []);
       setAddresses(Array.isArray(addressBookRes) ? addressBookRes : []);
       setSavedCards(Array.isArray(savedCardsRes) ? savedCardsRes : []);
     } catch (error) {
@@ -160,43 +182,57 @@ export default function ProfilePage() {
   };
 
   if (loading) {
-    return (
-      <div className={cn(clientPageShellClass, clientContentWideClass)}>
-        <div className="mx-auto w-full max-w-4xl">
-        <div className="mb-10 h-10 w-48 animate-pulse rounded-lg bg-neutral-100/80" />
-        <div className="mb-8 h-64 animate-pulse rounded-[var(--radius-xl)] bg-neutral-100/80" />
-        <div className="h-96 animate-pulse rounded-[var(--radius-xl)] bg-neutral-100/80" />
-        </div>
-      </div>
-    );
+    return <ProfileLoadingSkeleton />;
   }
 
   return (
     <div className={cn(clientPageShellClass, 'overflow-hidden')}>
       <div className={clientContentWideClass}>
-        <PageHeroHeader
-          title="Account Settings"
-          subtitle="Manage your profile, addresses, cards, and orders in one place."
-        />
-        <div className="mx-auto w-full max-w-4xl space-y-6">
-        {notice ? (
-          <p className="mb-6 rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm font-medium text-orange-800">
-            {notice}
-          </p>
-        ) : null}
+        <div className={clientAccountStackClass}>
+          <header className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-neutral-950 via-neutral-900 to-orange-950 px-6 py-10 text-white shadow-[0_32px_100px_-40px_rgba(0,0,0,0.55)] sm:px-10 sm:py-12">
+            <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-orange-500/25 blur-3xl" aria-hidden />
+            <div className="pointer-events-none absolute -bottom-16 left-1/4 h-48 w-48 rounded-full bg-amber-400/10 blur-2xl" aria-hidden />
+            <div className="relative">
+              <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-orange-300/90">Your account</p>
+              <h1 className="mt-2 font-display text-3xl font-black tracking-tight sm:text-4xl">Account settings</h1>
+              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/75">
+                Update how we reach you and manage saved delivery addresses and card placeholders. Orders and dish
+                ratings live on Orders & ratings.
+              </p>
+              <div className="mt-8 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">Saved addresses</p>
+                  <p className="mt-1 text-2xl font-black tabular-nums">{addresses.length}</p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">Payment methods</p>
+                  <p className="mt-1 text-2xl font-black tabular-nums text-amber-200">{savedCards.length}</p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">Display name</p>
+                  <p className="mt-1 truncate text-lg font-bold text-emerald-200 sm:text-xl">
+                    {profileName.trim() || '—'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </header>
 
-        <Card
-          className={cn(
-            clientGlassPanelFlatClass,
-            'gap-0',
-          )}
-        >
-          <CardHeader className="px-6 pt-6">
-            <CardTitle className={cn(clientSectionTitleClass, 'text-xl text-neutral-900')}>
-              Profile Details
+          {notice ? (
+            <p className="rounded-2xl border border-orange-200/60 bg-gradient-to-r from-orange-50 to-amber-50/80 px-5 py-3 text-sm font-medium text-orange-900 shadow-sm ring-1 ring-orange-500/10">
+              {notice}
+            </p>
+          ) : null}
+
+        <Card className={clientElevatedCardClass}>
+          <CardHeader className={clientElevatedCardHeaderClass}>
+            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-orange-600">Identity</p>
+            <CardTitle className={cn(clientSectionTitleClass, 'mt-1 text-xl text-neutral-900 sm:text-2xl')}>
+              Profile details
             </CardTitle>
+            <p className="mt-1 text-sm text-muted-foreground">Name and phone show on receipts and delivery.</p>
           </CardHeader>
-          <CardContent className="flex flex-col gap-4 px-6 pb-6">
+          <CardContent className="flex flex-col gap-5 px-6 py-6 sm:px-8 sm:py-8">
             <div className="grid gap-2">
               <Label htmlFor="profile-name" className={clientFormLabelClass}>
                 Full Name
@@ -221,6 +257,7 @@ export default function ProfilePage() {
             </div>
             <Button
               size="default"
+              className="w-fit rounded-full px-6"
               onClick={saveProfile}
               disabled={savingProfile}
             >
@@ -229,18 +266,15 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
 
-        <Card
-          className={cn(
-            clientGlassPanelFlatClass,
-            'gap-0',
-          )}
-        >
-          <CardHeader className="px-6 pt-6">
-            <CardTitle className={cn(clientSectionTitleClass, 'text-xl text-neutral-900')}>
-              Saved Addresses
+        <Card className={clientElevatedCardClass}>
+          <CardHeader className={clientElevatedCardHeaderClass}>
+            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-orange-600">Delivery</p>
+            <CardTitle className={cn(clientSectionTitleClass, 'mt-1 text-xl text-neutral-900 sm:text-2xl')}>
+              Saved addresses
             </CardTitle>
+            <p className="mt-1 text-sm text-muted-foreground">Add or edit labels, defaults, and full address lines.</p>
           </CardHeader>
-          <CardContent className="px-6 pb-6">
+          <CardContent className="space-y-6 px-6 py-6 sm:px-8 sm:py-8">
             <InlineFormPanel className={profileInlineFormPanelClass}>
               <Input
                 placeholder="Label (Home, Work)"
@@ -282,10 +316,11 @@ export default function ProfilePage() {
                     setAddressForm((s) => ({ ...s, isDefault: (e.target as HTMLInputElement).checked })),
                 }}
               />
-              <div className="md:col-span-2 flex gap-2">
+              <div className="md:col-span-2 flex flex-wrap gap-2">
                 <Button
                   type="button"
                   size="default"
+                  className="rounded-full px-5"
                   onClick={saveAddress}
                   disabled={savingAddress}
                 >
@@ -316,7 +351,7 @@ export default function ProfilePage() {
                 {addresses.map((address) => (
                   <div
                     key={address.id ?? `${address.label}-${address.addressLine1}`}
-                    className="rounded-2xl border border-neutral-200/80 bg-white/70 p-4 shadow-sm"
+                    className="rounded-2xl border border-neutral-100 bg-gradient-to-br from-white to-neutral-50/50 p-4 shadow-sm ring-1 ring-black/[0.02] transition-shadow hover:shadow-md"
                   >
                     <div className="mb-1 flex items-center justify-between gap-2">
                       <p className="font-semibold text-neutral-900">
@@ -365,18 +400,15 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
 
-        <Card
-          className={cn(
-            clientGlassPanelFlatClass,
-            'gap-0',
-          )}
-        >
-          <CardHeader className="px-6 pt-6">
-            <CardTitle className={cn(clientSectionTitleClass, 'text-xl text-neutral-900')}>
-              Saved Cards
+        <Card className={clientElevatedCardClass}>
+          <CardHeader className={clientElevatedCardHeaderClass}>
+            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-orange-600">Checkout</p>
+            <CardTitle className={cn(clientSectionTitleClass, 'mt-1 text-xl text-neutral-900 sm:text-2xl')}>
+              Saved cards
             </CardTitle>
+            <p className="mt-1 text-sm text-muted-foreground">Secure token placeholders — not full card numbers.</p>
           </CardHeader>
-          <CardContent className="px-6 pb-6">
+          <CardContent className="space-y-6 px-6 py-6 sm:px-8 sm:py-8">
             <InlineFormPanel className={profileInlineFormPanelClass}>
               <Input
                 placeholder="Card brand (Visa, MasterCard)"
@@ -409,10 +441,11 @@ export default function ProfilePage() {
                     setCardForm((s) => ({ ...s, isDefault: (e.target as HTMLInputElement).checked })),
                 }}
               />
-              <div className="md:col-span-2 flex gap-2">
+              <div className="md:col-span-2 flex flex-wrap gap-2">
                 <Button
                   type="button"
                   size="default"
+                  className="rounded-full px-5"
                   onClick={saveCard}
                   disabled={savingCard}
                 >
@@ -439,7 +472,7 @@ export default function ProfilePage() {
                 {savedCards.map((card) => (
                   <div
                     key={card.id ?? `${card.cardBrand}-${card.last4}-${card.token}`}
-                    className="rounded-2xl border border-neutral-200/80 bg-gradient-to-r from-slate-800 to-slate-700 p-4 text-white shadow-sm"
+                    className="rounded-2xl border border-neutral-800/50 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4 text-white shadow-[0_12px_32px_-16px_rgba(0,0,0,0.45)] ring-1 ring-white/10"
                   >
                     <div className="flex items-center justify-between gap-2">
                       <p className="font-semibold tracking-wide">
@@ -479,78 +512,6 @@ export default function ProfilePage() {
                   </div>
                 ))}
               </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card
-          className={cn(
-            clientGlassPanelFlatClass,
-            'gap-0',
-          )}
-        >
-          <CardHeader className="px-6 pt-6">
-            <CardTitle className={cn(clientSectionTitleClass, 'text-xl text-neutral-900')}>
-              Order History
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="px-6 pb-6">
-            {history.length === 0 ? (
-              <EmptyState
-                title="No orders yet"
-                description="Your completed orders will show up here."
-              />
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-neutral-200/80 hover:bg-transparent">
-                    <TableHead>Order</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Total</TableHead>
-                    <TableHead className="text-right">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {history.map((order) => (
-                    <TableRow key={order.id}>
-                      <TableCell className="font-semibold">
-                        #{order.id.slice(0, 8)}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {new Date(order.placedAt).toLocaleDateString()} •{' '}
-                        {order.fulfillmentType}
-                      </TableCell>
-                      <TableCell>
-                        <span
-                          className={
-                            order.status === 'delivered'
-                              ? 'text-sm font-semibold text-success'
-                              : 'text-sm font-semibold text-orange-600'
-                          }
-                        >
-                          {order.status.toUpperCase()}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right font-semibold">
-                        LKR {Number(order.total).toLocaleString()}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() =>
-                            router.push(`/${locale}/order/success?id=${encodeURIComponent(order.id)}`)
-                          }
-                        >
-                          Track
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
             )}
           </CardContent>
         </Card>

@@ -7,96 +7,62 @@
 
 > next dev --port=3003
 
-(node:32676) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(node:2559) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
-(node:32677) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(node:2568) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2578) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2582) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2579) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2577) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2581) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2580) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
 ▲ Next.js 16.1.7 (Turbopack)
 - Local:         http://localhost:3003
-- Network:       http://192.168.1.16:3003
+- Network:       http://192.168.1.2:3003
 - Environments: .env.local
 
 ✓ Starting...
-✓ Ready in 816ms
-(node:35518) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+✓ Ready in 2.8s
+(node:2634) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
- GET / 200 in 1820ms (compile: 1645ms, render: 175ms)
-✓ Compiled in 176ms
-✓ Compiled in 109ms
-✓ Compiled in 171ms
-✓ Compiled in 258ms
-✓ Compiled in 150ms
-✓ Compiled in 157ms
-✓ Compiled in 286ms
- GET / 200 in 769ms (compile: 479ms, render: 289ms)
- GET / 200 in 321ms (compile: 236ms, render: 85ms)
- GET / 200 in 165ms (compile: 79ms, render: 86ms)
- GET / 200 in 146ms (compile: 65ms, render: 80ms)
- GET / 200 in 127ms (compile: 101ms, render: 27ms)
-✓ Compiled in 327ms
-✓ Compiled in 129ms
-✓ Compiled in 176ms
- GET / 200 in 126ms (compile: 84ms, render: 41ms)
- GET / 200 in 185ms (compile: 76ms, render: 109ms)
- GET / 200 in 53ms (compile: 27ms, render: 26ms)
- GET / 200 in 79ms (compile: 11ms, render: 68ms)
- GET / 200 in 309ms (compile: 77ms, render: 232ms)
- GET / 200 in 13ms (compile: 4ms, render: 9ms)
- GET / 200 in 73ms (compile: 41ms, render: 33ms)
-✓ Compiled in 121ms
- GET / 200 in 285ms (compile: 163ms, render: 122ms)
-✓ Compiled in 160ms
- GET / 200 in 246ms (compile: 60ms, render: 186ms)
-✓ Compiled in 937ms
- GET / 200 in 1992ms (compile: 533ms, render: 1458ms)
- GET / 200 in 177ms (compile: 86ms, render: 92ms)
-✓ Compiled in 145ms
- GET / 200 in 478ms (compile: 288ms, render: 189ms)
-✓ Compiled in 440ms
-✓ Compiled in 342ms
-✓ Compiled in 482ms
- GET / 200 in 499ms (compile: 49ms, render: 451ms)
-✓ Compiled in 1255ms
- GET / 200 in 295ms (compile: 202ms, render: 93ms)
-✓ Compiled in 168ms
-✓ Compiled in 113ms
-✓ Compiled in 62ms
-✓ Compiled in 140ms
-✓ Compiled in 117ms
-✓ Compiled in 287ms
-✓ Compiled in 118ms
-✓ Compiled in 132ms
-✓ Compiled in 121ms
-✓ Compiled in 126ms
-✓ Compiled in 151ms
- GET / 200 in 415ms (compile: 68ms, render: 347ms)
-✓ Compiled in 115ms
-✓ Compiled in 337ms
-✓ Compiled in 71ms
-✓ Compiled in 130ms
-✓ Compiled in 51ms
-✓ Compiled in 138ms
-✓ Compiled in 90ms
-✓ Compiled in 176ms
-✓ Compiled in 59ms
-✓ Compiled in 127ms
-✓ Compiled in 89ms
-✓ Compiled in 57ms
- GET / 200 in 97ms (compile: 52ms, render: 45ms)
-✓ Compiled in 173ms
-✓ Compiled in 217ms
-✓ Compiled in 91ms
-✓ Compiled in 59ms
-✓ Compiled in 114ms
- GET / 200 in 295ms (compile: 52ms, render: 243ms)
-✓ Compiled in 545ms
- GET / 200 in 195ms (compile: 68ms, render: 127ms)
-✓ Compiled in 697ms
- GET / 200 in 64ms (compile: 23ms, render: 41ms)
- GET / 200 in 158ms (compile: 66ms, render: 91ms)
+(node:2633) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2631) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2635) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2636) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2632) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:3826) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ GET / 200 in 933ms (compile: 777ms, render: 156ms)
+✓ Compiled in 283ms
+ GET / 200 in 395ms (compile: 179ms, render: 215ms)
+ GET / 200 in 575ms (compile: 128ms, render: 447ms)
+ GET / 200 in 743ms (compile: 204ms, render: 540ms)
+ GET / 200 in 784ms (compile: 358ms, render: 425ms)
+ GET / 200 in 821ms (compile: 188ms, render: 633ms)
+ GET / 200 in 298ms (compile: 16ms, render: 281ms)
+✓ Compiled in 161ms
+✓ Compiled in 123ms
+Task "kitchen:dev" is continuous but exited with code 0
 
 
 
- NX   Successfully ran target dev for project kitchen
+ NX   Running target dev for project kitchen failed
 
+Failed tasks:
+
+- kitchen:dev
+
+Hint: run the command with --verbose for more details.
 

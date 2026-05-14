@@ -68,11 +68,48 @@ export class OrderController {
   @ApiOperation({ summary: 'List orders', description: 'Filter by status and fulfillmentType. Staff roles only.' })
   @ApiQuery({ name: 'status', required: false, description: 'Filter by order status' })
   @ApiQuery({ name: 'fulfillmentType', required: false })
+  @ApiQuery({ name: 'page', required: false, description: '1-based page (enables paginated response with limit)' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Page size (max 100; use with page)' })
+  @ApiQuery({
+    name: 'placedOn',
+    required: false,
+    description: 'Calendar day YYYY-MM-DD — filter orders whose placedAt falls on that local day (server TZ)',
+  })
+  @ApiQuery({
+    name: 'scope',
+    required: false,
+    description: 'If `today`, restrict placedAt to the server\'s current calendar day (ignored when placedOn is set)',
+    enum: ['today'],
+  })
   async getOrders(
     @Query('status') status?: OrderStatus,
     @Query('fulfillmentType') fulfillmentType?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('placedOn') placedOn?: string,
+    @Query('scope') scope?: string,
   ) {
-    return this.orderService.getOrders(status, fulfillmentType);
+    const p = page !== undefined && page !== '' ? Number(page) : undefined;
+    const l = limit !== undefined && limit !== '' ? Number(limit) : undefined;
+    return this.orderService.getOrders(status, fulfillmentType, p, l, placedOn, scope);
+  }
+
+  /** Today’s orders (server TZ) for the admin home dashboard — always paginated; never returns an unbounded array. */
+  @Get('admin/dashboard-list')
+  @Roles('ADMIN')
+  @ApiOperation({
+    summary: 'Admin dashboard order list',
+    description:
+      'Orders placed today in the API server timezone, newest first. Response is always `{ items, total, page, limit, hasMore }`.',
+  })
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'limit', required: false })
+  async getAdminDashboardOrders(@Query('page') page?: string, @Query('limit') limit?: string) {
+    const p = page !== undefined && page !== '' ? Number(page) : 1;
+    const l = limit !== undefined && limit !== '' ? Number(limit) : 20;
+    const safePage = Number.isFinite(p) && p > 0 ? p : 1;
+    const safeLimit = Number.isFinite(l) && l > 0 ? l : 20;
+    return this.orderService.getAdminDashboardOrdersPaginated(safePage, safeLimit);
   }
 
   @Get('queue')

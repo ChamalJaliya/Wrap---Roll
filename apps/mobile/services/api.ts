@@ -4,7 +4,9 @@ import type {
   CustomerAddress,
   CustomerHistoryOrder,
   MenuItem,
+  MenuItemReviewSummary,
   PublicBusinessSettings,
+  PublicMenuItemReviewList,
   SavedPaymentToken,
 } from '@wrap-roll/contracts';
 import { getApiBaseUrl } from '@/lib/env';
@@ -83,6 +85,17 @@ export const MenuService = {
     nutritionTags: Array<{ key: string; label: string }>;
   }> => {
     const { data } = await api.get(`/menu/${id}/info`);
+    return data;
+  },
+  getMenuItemReviewSummary: async (id: string): Promise<MenuItemReviewSummary> => {
+    const { data } = await api.get(`/menu/${encodeURIComponent(id)}/reviews/summary`);
+    return data;
+  },
+  getMenuItemPublicReviews: async (
+    id: string,
+    params?: { page?: number; limit?: number },
+  ): Promise<PublicMenuItemReviewList> => {
+    const { data } = await api.get(`/menu/${encodeURIComponent(id)}/reviews`, { params });
     return data;
   },
 };
@@ -221,6 +234,27 @@ export const CustomerApiService = {
 
   saveCard: async (payload: SavedPaymentToken): Promise<SavedPaymentToken> => {
     const { data } = await api.put('/customer/card', payload);
+    return data;
+  },
+
+  createDishReview: async (
+    orderId: string,
+    menuItemId: string,
+    payload: { rating: number; comment?: string | null; photoUrls?: string[] },
+  ): Promise<{
+    id: string;
+    menuItemId: string;
+    orderId: string;
+    rating: number;
+    comment: string | null;
+    photoUrls: string[];
+    visibility: string;
+    createdAt: string;
+  }> => {
+    const { data } = await api.post(
+      `/customer/orders/${encodeURIComponent(orderId)}/menu-items/${encodeURIComponent(menuItemId)}/reviews`,
+      payload,
+    );
     return data;
   },
 };

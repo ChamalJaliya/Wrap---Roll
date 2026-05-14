@@ -56,6 +56,9 @@ export const MenuItemSchema = z.object({
   isActive:        z.boolean().default(true),
   createdAt:       z.string().datetime(),
   updatedAt:       z.string().datetime(),
+  /** Denormalized public-review average (1–5); null when there are no public reviews */
+  averageRating: z.number().min(1).max(5).nullable().optional(),
+  reviewCount: z.number().int().nonnegative().optional(),
 });
 
 export const ModifierOptionInputSchema = z.object({

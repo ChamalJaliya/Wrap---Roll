@@ -3,12 +3,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import api from '../../services/api';
 import { Button, Card, CardContent, CardHeader, CardTitle, FormToggleRow, Input, Label, toast } from '@wrap-roll/shared-ui';
-import {
-  adminPageContainerClass,
-  adminPageShellClass,
-  adminPageTitleClass,
-  adminPageTitleSpacingClass,
-} from '../../lib/admin-ui-contract';
+import { AdminPageHeader } from '../../components/AdminPageHeader';
+import { adminPageContainerClass, adminPageRootClass } from '../../lib/admin-ui-contract';
 
 type CouponRow = {
   id: string;
@@ -108,9 +104,9 @@ export default function AdminCouponsPage() {
   };
 
   return (
-    <div className={adminPageShellClass}>
+    <div className={adminPageRootClass}>
       <div className={adminPageContainerClass}>
-        <h1 className={`${adminPageTitleSpacingClass} ${adminPageTitleClass}`}>Coupons</h1>
+        <AdminPageHeader title="Coupons" />
 
         <Card className="mb-8">
           <CardHeader>

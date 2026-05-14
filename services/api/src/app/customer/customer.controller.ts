@@ -16,16 +16,24 @@ import {
   CustomerAdminPatchBodyDto,
   CustomerProfileUpdateBodyDto,
   SavedPaymentTokenBodyDto,
+  CreateMenuItemReviewBodyDto,
+  CreateMenuItemReviewReplyBodyDto,
 } from '../../openapi/zod-dtos';
 import { CustomerService } from './customer.service';
 import { CurrentUser, RequestUser } from '../../auth/current-user.decorator';
 import { Roles } from '../../auth/roles.decorator';
 import { CustomerAddressSchema, SavedPaymentTokenSchema } from '@wrap-roll/contracts';
+import { MenuReviewService } from '../menu-review/menu-review.service';
+import type { Order, OrderItem } from '@prisma/client';
+import { Throttle } from '@nestjs/throttler';
 
 @Controller('customer')
 @ApiTags('customer')
 export class CustomerController {
-  constructor(private readonly customerService: CustomerService) {}
+  constructor(
+    private readonly customerService: CustomerService,
+    private readonly menuReviewService: MenuReviewService,
+  ) {}
 
   /** Idempotent: ensure one Prisma row is linked to this Supabase session (no order history payload). */
   @Post('sync')
@@ -64,7 +72,68 @@ export class CustomerController {
     }
     const customer = await this.customerService.requireCustomerRowForAuth(user);
     const full = await this.customerService.getCustomerHistory(customer.id);
-    return full?.orders ?? [];
+    const orders = (full?.orders ?? []) as (Order & { items: OrderItem[] })[];
+    return this.menuReviewService.attachDishReviewHintsToOrders(customer.id, orders);
+  }
+
+  @Throttle({ default: { limit: 40, ttl: 60_000 } })
+  @Post('orders/:orderId/menu-items/:menuItemId/reviews')
+  @HttpCode(201)
+  @Roles('CLIENT', 'ADMIN')
+  @ApiBody({ type: CreateMenuItemReviewBodyDto })
+  async createMenuItemReview(
+    @CurrentUser() user: RequestUser,
+    @Param('orderId') orderId: string,
+    @Param('menuItemId') menuItemId: string,
+    @Body() body: unknown,
+  ) {
+    if (!user?.email) {
+      throw new NotFoundException('Customer profile requires an email on your auth account');
+    }
+    const customer = await this.customerService.requireCustomerRowForAuth(user);
+    return this.menuReviewService.createReview({
+      actorCustomerId: customer.id,
+      orderId,
+      menuItemId,
+      body,
+    });
+  }
+
+  /** Public menu review thread — reply (JWT + Customer row). Path under `/customer` avoids `menu/*` route clashes. */
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  @Post('menu-item-reviews/:reviewId/replies')
+  @HttpCode(201)
+  @Roles('CLIENT', 'ADMIN')
+  @ApiBody({ type: CreateMenuItemReviewReplyBodyDto })
+  async addMenuItemReviewReply(
+    @CurrentUser() user: RequestUser,
+    @Param('reviewId') reviewId: string,
+    @Body() body: unknown,
+  ) {
+    if (!user?.email) {
+      throw new NotFoundException('Customer profile requires an email on your auth account');
+    }
+    const customer = await this.customerService.requireCustomerRowForAuth(user);
+    return this.menuReviewService.addCustomerReply({
+      actorCustomerId: customer.id,
+      reviewId,
+      body,
+    });
+  }
+
+  @Throttle({ default: { limit: 120, ttl: 60_000 } })
+  @Post('menu-item-reviews/:reviewId/reactions/helpful')
+  @HttpCode(200)
+  @Roles('CLIENT', 'ADMIN')
+  async toggleMenuItemReviewHelpful(@CurrentUser() user: RequestUser, @Param('reviewId') reviewId: string) {
+    if (!user?.email) {
+      throw new NotFoundException('Customer profile requires an email on your auth account');
+    }
+    const customer = await this.customerService.requireCustomerRowForAuth(user);
+    return this.menuReviewService.toggleReviewHelpful({
+      actorCustomerId: customer.id,
+      reviewId,
+    });
   }
 
   @Put('profile')

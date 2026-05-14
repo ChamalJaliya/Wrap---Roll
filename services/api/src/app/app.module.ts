@@ -22,6 +22,7 @@ import { LocationModule } from './location/location.module';
 import { ActivityModule } from './activity/activity.module';
 import { QueueModule } from './queue/queue.module';
 import { OutboxModule } from './outbox/outbox.module';
+import { MenuReviewModule } from './menu-review/menu-review.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { OutboxModule } from './outbox/outbox.module';
     LocationModule,
     QueueModule.register(),
     OutboxModule,
+    MenuReviewModule,
     ThrottlerModule.forRoot([{
       ttl: 60000,
       limit: 100,

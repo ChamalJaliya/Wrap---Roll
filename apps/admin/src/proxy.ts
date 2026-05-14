@@ -16,6 +16,15 @@ function isPublicPath(pathname: string): boolean {
 /** Edge auth gate + allow `/api/nest/*` through so the App Route can map httpOnly cookie → Bearer. */
 export default function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // Mistaken Nest paths hit Next as `/api/admin/...` (missing `nest`). Rewrite to the real proxy route.
+  if (pathname === '/api/admin' || pathname.startsWith('/api/admin/')) {
+    const url = request.nextUrl.clone();
+    const tail = pathname.slice('/api/admin'.length);
+    url.pathname = `/api/nest/admin${tail}`;
+    return NextResponse.rewrite(url);
+  }
+
   if (isPublicPath(pathname)) return NextResponse.next();
 
   const token = request.cookies.get(ADMIN_ACCESS_COOKIE)?.value;

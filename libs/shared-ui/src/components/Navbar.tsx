@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Menu, X, Globe, User, LogOut, Settings, ShoppingBag } from "lucide-react"
+import { Menu, X, Globe, User, LogOut, Settings, ShoppingBag, History } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "./ui/button"
 import { ThemeToggle } from "./ThemeToggle"
@@ -29,6 +29,7 @@ export type NavbarCopy = {
   selectLanguage: string
   account: string
   myProfile: string
+  orderHistory: string
   settings: string
   logOut: string
   signIn: string
@@ -41,6 +42,7 @@ const defaultNavbarCopy: NavbarCopy = {
   selectLanguage: "Select Language",
   account: "Account",
   myProfile: "My Profile",
+  orderHistory: "Order History",
   settings: "Settings",
   logOut: "Log Out",
   signIn: "Sign In",
@@ -73,6 +75,7 @@ export interface NavbarProps {
   onSignIn?: () => void
   onSignOut?: () => void
   onProfileClick?: () => void
+  onOrderHistoryClick?: () => void
   onSettingsClick?: () => void
 }
 
@@ -99,6 +102,7 @@ export const Navbar = ({
   onSignIn,
   onSignOut,
   onProfileClick,
+  onOrderHistoryClick,
   onSettingsClick,
 }: NavbarProps) => {
   const ui = { ...defaultNavbarCopy, ...copy }
@@ -250,6 +254,15 @@ export const Navbar = ({
                     <User className="mr-3 h-4 w-4" />
                     {ui.myProfile}
                   </DropdownMenuItem>
+                  {onOrderHistoryClick ? (
+                    <DropdownMenuItem
+                      className="rounded-xl px-3 py-2.5 text-sm font-bold text-neutral-600 cursor-pointer mb-1"
+                      onClick={onOrderHistoryClick}
+                    >
+                      <History className="mr-3 h-4 w-4" />
+                      {ui.orderHistory}
+                    </DropdownMenuItem>
+                  ) : null}
                   <DropdownMenuItem
                     className="rounded-xl px-3 py-2.5 text-sm font-bold text-neutral-600 cursor-pointer mb-1"
                     onClick={onSettingsClick}
@@ -317,17 +330,36 @@ export const Navbar = ({
                   <Button
                     variant="ghost"
                     className="w-full justify-start gap-3 rounded-xl p-6 font-black text-neutral-600"
-                    onClick={onProfileClick}
+                    onClick={() => {
+                      setIsOpen(false)
+                      onProfileClick?.()
+                    }}
                   >
                     <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-[10px] font-black text-white">
                       {userInitials}
                     </div>
                     {ui.accountProfile}
                   </Button>
+                  {onOrderHistoryClick ? (
+                    <Button
+                      variant="ghost"
+                      className="w-full justify-start gap-3 rounded-xl p-6 font-black text-neutral-600"
+                      onClick={() => {
+                        setIsOpen(false)
+                        onOrderHistoryClick()
+                      }}
+                    >
+                      <History className="h-5 w-5" />
+                      {ui.orderHistory}
+                    </Button>
+                  ) : null}
                   <Button
                     variant="ghost"
                     className="w-full justify-start gap-3 rounded-xl p-6 font-black text-neutral-600"
-                    onClick={onSettingsClick}
+                    onClick={() => {
+                      setIsOpen(false)
+                      onSettingsClick?.()
+                    }}
                   >
                     <Settings className="h-5 w-5" />
                     {ui.settings}
@@ -335,7 +367,10 @@ export const Navbar = ({
                   <Button
                     variant="ghost"
                     className="w-full justify-start gap-3 rounded-xl p-6 font-black text-red-500 hover:bg-red-50"
-                    onClick={onSignOut}
+                    onClick={() => {
+                      setIsOpen(false)
+                      onSignOut?.()
+                    }}
                   >
                     <LogOut className="h-5 w-5" />
                     {ui.signOut}

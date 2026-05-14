@@ -79,16 +79,15 @@ export const MenuItemPhotoEditor = forwardRef<MenuItemPhotoEditorHandle, MenuIte
     );
 
     return (
-      <div className="mt-7 rounded-2xl border border-dashed border-neutral-200 bg-neutral-50/50 p-5 sm:p-6">
-        <h4 className="text-sm font-semibold uppercase tracking-[0.12em] text-neutral-500">Item photo</h4>
-        <p className="mt-1.5 text-xs text-muted-foreground">
-          Shown on the customer menu and checkout. One primary image - paste a secure (
-          <span className="font-mono">https</span>) image link.
+      <div className="mt-4 rounded-lg border border-dashed border-border bg-muted/30 p-3 sm:p-4">
+        <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Photo</h4>
+        <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
+          Optional — paste an <span className="font-mono">https</span> image URL for menu & checkout.
         </p>
 
-        <div className="mt-5 flex flex-col gap-6 lg:flex-row lg:items-start">
-          <div className="flex shrink-0 justify-center lg:w-[200px]">
-            <div className="relative flex h-40 w-full max-w-[200px] items-center justify-center overflow-hidden rounded-xl border bg-white shadow-sm lg:h-44">
+        <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-start">
+          <div className="flex shrink-0 justify-center sm:justify-start">
+            <div className="relative flex h-[104px] w-[104px] shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-background shadow-sm">
               {imageUrl && !previewBroken ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -98,24 +97,24 @@ export const MenuItemPhotoEditor = forwardRef<MenuItemPhotoEditorHandle, MenuIte
                   onError={() => setPreviewBroken(true)}
                 />
               ) : (
-                <div className="flex flex-col items-center gap-2 p-4 text-center text-muted-foreground">
-                  <ImageIcon className="h-10 w-10 opacity-40" />
-                  <span className="text-xs font-medium">No preview yet</span>
+                <div className="flex flex-col items-center gap-1 p-2 text-center text-muted-foreground">
+                  <ImageIcon className="h-7 w-7 opacity-40" />
+                  <span className="text-[10px] font-medium">No image</span>
                 </div>
               )}
             </div>
           </div>
 
-          <div className="min-w-0 flex-1 space-y-4">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor={urlInputId} className="flex items-center gap-2">
-                <Link2 className="h-3.5 w-3.5 opacity-70" /> Image URL
+          <div className="min-w-0 flex-1 space-y-2">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor={urlInputId} className="flex items-center gap-1.5 text-xs">
+                <Link2 className="h-3 w-3 opacity-70" /> Image URL
               </Label>
               <Input
                 id={urlInputId}
                 type="url"
                 placeholder="https://…"
-                className="h-11 bg-white"
+                className="h-9 bg-background"
                 value={urlDraft}
                 onChange={(e) => {
                   setUrlDraft(e.target.value);
@@ -128,12 +127,13 @@ export const MenuItemPhotoEditor = forwardRef<MenuItemPhotoEditorHandle, MenuIte
                 Showing an existing local image value. Add a URL above to switch to a hosted image.
                 </p>
               ) : null}
-            <div className="flex flex-wrap items-center gap-2 pt-1">
+            <div className="flex flex-wrap items-center gap-2 pt-0.5">
               {imageUrl ? (
                 <Button
                   type="button"
                   variant="ghost"
-                  className="h-11 text-destructive hover:text-destructive"
+                  size="sm"
+                  className="h-8 text-destructive hover:text-destructive"
                   onClick={() => {
                     onChange(undefined);
                     onClientError?.(null);

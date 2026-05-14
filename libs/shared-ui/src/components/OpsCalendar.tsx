@@ -3,10 +3,19 @@
 import * as React from 'react';
 import type { OperationsCalendar } from '@wrap-roll/contracts';
 import { Button } from './ui/button';
-import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from './ui/sheet';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from './ui/sheet';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Badge } from './ui/badge';
+import { Textarea } from './ui/textarea';
+import { FormToggleRow } from './FormToggleRow';
 import { cn } from '../lib/utils';
 import {
   addDaysYmd,
@@ -29,6 +38,27 @@ type DayStatus = {
   hoursLabel?: string;
   note?: string;
 };
+
+function formatDayHeading(ymd: string | null): { title: string; isoLine: string } {
+  if (!ymd) return { title: 'Day', isoLine: '' };
+  const parts = ymd.split('-');
+  if (parts.length !== 3) return { title: ymd, isoLine: '' };
+  const y = Number(parts[0]);
+  const mo = Number(parts[1]);
+  const d = Number(parts[2]);
+  if (!Number.isFinite(y) || !Number.isFinite(mo) || !Number.isFinite(d)) {
+    return { title: ymd, isoLine: '' };
+  }
+  const utc = new Date(Date.UTC(y, mo - 1, d, 12, 0, 0));
+  const title = new Intl.DateTimeFormat(undefined, {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(utc);
+  return { title, isoLine: ymd };
+}
 
 function ymdTodayInTimeZone(timeZone: string): string {
   const fmt = new Intl.DateTimeFormat('en-CA', {
@@ -240,88 +270,175 @@ function DayEditorDialog({
     onChangeCalendar(next);
   };
 
+  const heading = formatDayHeading(ymd);
+  const overnightHint =
+    !forcedClosed && !closed
+      ? (() => {
+          const o = timeToMinutes(openTime);
+          const c = timeToMinutes(closeTime);
+          if (o == null || c == null) return null;
+          if (c <= o) {
+            return (
+              <p className="text-xs text-muted-foreground">
+                Close time is before open — treated as an{' '}
+                <strong className="font-semibold text-foreground">overnight</strong> window (into the next day).
+              </p>
+            );
+          }
+          return null;
+        })()
+      : null;
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-[min(520px,90vw)] sm:max-w-none">
-        <SheetHeader className="border-b bg-gradient-to-r from-primary/[0.08] via-white to-primary/[0.04]">
-          <SheetTitle className="font-display text-xl font-black">Edit {ymd ?? ''}</SheetTitle>
+      <SheetContent
+        side="right"
+        showCloseButton
+        className="flex w-[min(440px,92vw)] flex-col gap-0 overflow-hidden border-l p-0 sm:max-w-none"
+      >
+        <SheetHeader className="shrink-0 space-y-1 border-b border-border/70 bg-background px-5 pb-4 pt-5 sm:px-6">
+          <SheetTitle className="pr-8 font-display text-xl font-black tracking-tight text-foreground">
+            {heading.title}
+          </SheetTitle>
+          {heading.isoLine ? (
+            <SheetDescription className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              {heading.isoLine} · day override
+            </SheetDescription>
+          ) : (
+            <SheetDescription className="text-sm text-muted-foreground">Edit schedule for this date</SheetDescription>
+          )}
         </SheetHeader>
-        <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <Button type="button" variant={isHoliday ? 'destructive' : 'outline'} onClick={toggleHoliday}>
-              {isHoliday ? 'Holiday (closed)' : 'Mark as holiday'}
-            </Button>
-            {entry ? <Badge variant="secondary">Override exists</Badge> : null}
-            {forcedClosed ? <Badge variant="outline">Forced closed</Badge> : null}
-          </div>
 
-          {forcedClosed ? (
-            <p className="text-xs text-muted-foreground">
-              This date is in <code className="rounded bg-muted px-1">closedDates</code>, so it is always closed
-              for customers. You can still add a note (optional).
-            </p>
-          ) : null}
-
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={closed}
-              disabled={forcedClosed}
-              onChange={(e) => setClosed(e.target.checked)}
-            />
-            Closed for day (override)
-          </label>
-
-          {!forcedClosed && !closed ? (
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label>Open</Label>
-                <Input type="time" value={openTime} onChange={(e) => setOpenTime(e.target.value)} />
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
+          <div className="space-y-5">
+            <section className="rounded-xl border border-border/80 bg-muted/20 p-4">
+              <p className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Holiday & flags
+              </p>
+              <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={isHoliday ? 'destructive' : 'outline'}
+                  className="h-10 w-full shrink-0 sm:w-auto"
+                  onClick={toggleHoliday}
+                >
+                  {isHoliday ? 'Holiday — closed' : 'Mark as holiday'}
+                </Button>
+                <div className="flex flex-wrap gap-2">
+                  {entry ? (
+                    <Badge variant="secondary" className="font-semibold">
+                      Override exists
+                    </Badge>
+                  ) : null}
+                  {forcedClosed ? (
+                    <Badge variant="outline" className="border-amber-500/50 text-amber-900">
+                      Calendar closed
+                    </Badge>
+                  ) : null}
+                </div>
               </div>
-              <div className="grid gap-2">
-                <Label>Close</Label>
-                <Input type="time" value={closeTime} onChange={(e) => setCloseTime(e.target.value)} />
-              </div>
-            </div>
-          ) : null}
+              {forcedClosed ? (
+                <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+                  This date is listed in <code className="rounded bg-muted px-1 py-0.5 text-[11px]">closedDates</code>{' '}
+                  — customers always see it as closed. You can still leave an internal note below.
+                </p>
+              ) : null}
+            </section>
 
-          {!forcedClosed && !closed ? (
-            (() => {
-              const o = timeToMinutes(openTime);
-              const c = timeToMinutes(closeTime);
-              if (o == null || c == null) return null;
-              if (c <= o) {
-                return (
-                  <p className="text-xs text-muted-foreground">
-                    This looks like an <strong className="font-semibold">overnight</strong> window (close is on
-                    the next day).
-                  </p>
-                );
-              }
-              return null;
-            })()
-          ) : null}
+            {!forcedClosed ? (
+              <section className="space-y-3 rounded-xl border border-border/80 bg-background p-4">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Hours for this day
+                </p>
+                <div className="rounded-lg border border-border/60 bg-muted/10 px-3 py-3">
+                  <FormToggleRow
+                    className="text-sm text-foreground"
+                    label="Closed for day (override)"
+                    inputProps={{
+                      type: 'checkbox',
+                      className: 'size-4 accent-primary',
+                      checked: closed,
+                      disabled: forcedClosed,
+                      onChange: (e) => setClosed((e.target as HTMLInputElement).checked),
+                    }}
+                  />
+                </div>
 
-          <div className="grid gap-2">
-            <Label>Note</Label>
-            <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Optional note" />
+                {!closed ? (
+                  <>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <div className="flex flex-col gap-1.5">
+                        <Label htmlFor={`ops-cal-open-${ymd}`}>Open</Label>
+                        <Input
+                          id={`ops-cal-open-${ymd}`}
+                          className="h-10"
+                          type="time"
+                          value={openTime}
+                          onChange={(e) => setOpenTime(e.target.value)}
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <Label htmlFor={`ops-cal-close-${ymd}`}>Close</Label>
+                        <Input
+                          id={`ops-cal-close-${ymd}`}
+                          className="h-10"
+                          type="time"
+                          value={closeTime}
+                          onChange={(e) => setCloseTime(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    {overnightHint}
+                  </>
+                ) : null}
+              </section>
+            ) : null}
+
+            <section className="flex flex-col gap-2">
+              <Label htmlFor={`ops-cal-note-${ymd}`} className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Note
+              </Label>
+              <Textarea
+                id={`ops-cal-note-${ymd}`}
+                rows={3}
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="Optional — e.g. reason for special hours or closure"
+                className="min-h-[5.5rem] resize-y text-sm"
+              />
+            </section>
+
+            {error ? (
+              <p className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {error}
+              </p>
+            ) : null}
           </div>
-
-          {error ? <p className="text-sm text-red-600">{error}</p> : null}
         </div>
-        <SheetFooter className="border-t bg-white">
-          <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <Button type="button" variant="outline" onClick={clearOverride} disabled={!ymd}>
-              Clear override
+
+        <SheetFooter className="mt-0 shrink-0 flex-col gap-3 border-t border-border/80 bg-muted/15 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <Button
+            type="button"
+            variant="outline"
+            className="h-10 w-full sm:w-auto"
+            onClick={clearOverride}
+            disabled={!ymd}
+          >
+            Clear override
+          </Button>
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-10 w-full sm:w-auto"
+              onClick={() => onOpenChange(false)}
+            >
+              Cancel
             </Button>
-            <div className="flex gap-2 sm:justify-end">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                Cancel
-              </Button>
-              <Button type="button" onClick={save} disabled={!ymd}>
-                Save day
-              </Button>
-            </div>
+            <Button type="button" className="h-10 w-full sm:w-auto" onClick={save} disabled={!ymd}>
+              Save day
+            </Button>
           </div>
         </SheetFooter>
       </SheetContent>

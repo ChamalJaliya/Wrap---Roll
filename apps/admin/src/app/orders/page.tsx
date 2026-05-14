@@ -27,19 +27,27 @@ import type {
 import { ORDER_FLOW_BOARD_STATUSES, mergeQueueOrderFromApiPatch } from '@wrap-roll/contracts';
 import { useQueueDirtyStream } from '@wrap-roll/order-kit';
 import {
+  Button,
   DataPanel,
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   EmptyState,
+  Input,
+  Label,
   MetricCard,
   OrderQueueBoard,
   OrderDetailsModal,
-  PageHeader,
   PageStack,
   QueueOrderCard,
+  SegmentedControl,
+  SegmentedControlItem,
+  cn,
 } from '@wrap-roll/shared-ui';
+import { AdminPageHeader } from '../../components/AdminPageHeader';
+import { adminPageContainerClass, adminPageRootClass } from '../../lib/admin-ui-contract';
 
 type ReconciliationSummary = {
   totalOrders: number;
@@ -563,22 +571,101 @@ export default function OrdersConsolePage() {
   }, [boardView, activeFilter, currentFilterOptions]);
 
   return (
-    <PageStack>
-      <PageHeader
-        title="Orders Console"
-        description="Unified active queue with payment-state visibility and staff actions."
-      />
+    <div className={adminPageRootClass}>
+      <div className={adminPageContainerClass}>
+        <PageStack>
+          <AdminPageHeader
+            title="Orders Console"
+            description="Look up any order below, then use filters and the board for today’s queue."
+          />
       {loadError ? (
         <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
           {loadError}
         </div>
       ) : null}
       {loading ? <EmptyState title="Loading orders..." description="Fetching active queue." /> : null}
-      <DataPanel>
+
+      <section className="mb-5 rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/[0.06] via-card/90 to-card p-4 shadow-sm md:p-5">
+        <div className="mb-3">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Find an order
+          </h2>
+          <p className="mt-1 max-w-3xl text-xs text-muted-foreground">
+            Support search by order id, customer name, or phone (min. 2 characters). Results open here —
+            they do not filter the kanban columns.
+          </p>
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Order id, customer name, phone…"
+            className="h-10 min-w-0 flex-1 text-sm"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') void runSearch();
+            }}
+            aria-label="Support order search"
+          />
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <Button type="button" className="h-10 text-xs font-semibold" onClick={() => void runSearch()}>
+              Search
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-10 text-xs font-semibold"
+              onClick={() => void load({ silent: true })}
+            >
+              Refresh queue
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-10 text-xs font-semibold"
+              onClick={() => setDiagnosticsOpen(true)}
+            >
+              Diagnostics
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      {searchResults.length > 0 ? (
+        <div className="mb-5 rounded-xl border border-border/80 bg-card p-3 shadow-sm">
+          <p className="mb-2 text-xs font-semibold text-muted-foreground">Support search results</p>
+          <div className="space-y-1">
+            {searchResults.map((o) => (
+              <button
+                key={`s-${o.id}`}
+                type="button"
+                className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-left hover:bg-muted/50"
+                onClick={() => {
+                  setSelected(o);
+                  void loadOrderDetails(o.id);
+                }}
+              >
+                <span className="text-xs font-semibold">
+                  {o.id.slice(0, 8).toUpperCase()} • {o.customer?.name || 'Guest'}
+                </span>
+                <span className="text-xs text-muted-foreground">{o.status}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      <DataPanel className="border-0 bg-transparent p-0 shadow-none hover:shadow-none">
         {boardView === 'order' ? (
-          <div className="mb-4 rounded-lg border p-3">
-            <p className="mb-2 text-xs font-semibold text-muted-foreground">Order flow summary</p>
-            <div className="grid gap-2 md:grid-cols-4">
+          <section className="mb-5 rounded-2xl border border-border/80 bg-card/80 p-4 shadow-sm backdrop-blur-sm md:p-5">
+            <div className="flex flex-wrap items-baseline justify-between gap-2 gap-y-1">
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Pipeline overview
+              </h2>
+              <span className="text-[11px] text-muted-foreground">
+                {scopedOrders.length} order{scopedOrders.length === 1 ? '' : 's'} on board date
+              </span>
+            </div>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
               <MetricCard
                 size="sm"
                 label="Placed"
@@ -608,54 +695,60 @@ export default function OrdersConsolePage() {
                 accent="#22c55e"
               />
             </div>
-            <p className="mb-2 mt-4 text-xs font-semibold text-muted-foreground">Queue urgency (open tickets)</p>
-            <div className="grid gap-2 md:grid-cols-4">
-              <MetricCard
-                size="sm"
-                label="Overdue"
-                value={overdueSlaCount}
-                icon={AlertTriangle}
-                accent="#ef4444"
-                className="border-red-100 bg-red-50/80 dark:bg-red-950/25"
-              />
-              <MetricCard
-                size="sm"
-                label="Due soon"
-                value={dueSoonSlaCount}
-                icon={Clock}
-                accent="#d97706"
-                className="border-amber-100 bg-amber-50/80 dark:bg-amber-950/25"
-              />
-              <MetricCard
-                size="sm"
-                label="Scheduled hold"
-                value={scheduledHoldCount}
-                icon={CalendarClock}
-                accent="#ea580c"
-                className="border-orange-100 bg-orange-50/80 dark:bg-orange-950/25"
-              />
-              <MetricCard
-                size="sm"
-                label="Rush"
-                value={rushCount}
-                icon={Zap}
-                accent="#f43f5e"
-                className="border-rose-100 bg-rose-50/80 dark:bg-rose-950/25"
-              />
+            <div className="mt-5 border-t border-border/70 pt-5">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Attention (open tickets)
+              </h3>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                <MetricCard
+                  size="sm"
+                  label="Overdue"
+                  value={overdueSlaCount}
+                  icon={AlertTriangle}
+                  accent="#ef4444"
+                  className="border-red-100 bg-red-50/80 dark:bg-red-950/25"
+                />
+                <MetricCard
+                  size="sm"
+                  label="Due soon"
+                  value={dueSoonSlaCount}
+                  icon={Clock}
+                  accent="#d97706"
+                  className="border-amber-100 bg-amber-50/80 dark:bg-amber-950/25"
+                />
+                <MetricCard
+                  size="sm"
+                  label="Scheduled hold"
+                  value={scheduledHoldCount}
+                  icon={CalendarClock}
+                  accent="#ea580c"
+                  className="border-orange-100 bg-orange-50/80 dark:bg-orange-950/25"
+                />
+                <MetricCard
+                  size="sm"
+                  label="Rush"
+                  value={rushCount}
+                  icon={Zap}
+                  accent="#f43f5e"
+                  className="border-rose-100 bg-rose-50/80 dark:bg-rose-950/25"
+                />
+              </div>
             </div>
-          </div>
+          </section>
         ) : recon ? (
-          <div className="mb-4 rounded-lg border p-3">
-            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-              <p className="text-xs font-semibold text-muted-foreground">Daily reconciliation summary</p>
-              <input
+          <section className="mb-5 rounded-2xl border border-border/80 bg-card/80 p-4 shadow-sm backdrop-blur-sm md:p-5">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Daily reconciliation
+              </h2>
+              <Input
                 type="date"
-                className="h-8 rounded border px-2 text-xs"
+                className="h-9 w-auto min-w-[10rem] text-xs"
                 value={reconDate ?? ''}
                 onChange={(e) => setReconDate(e.target.value)}
               />
             </div>
-            <div className="grid gap-2 md:grid-cols-4">
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
               <MetricCard
                 size="sm"
                 label="Total orders"
@@ -685,114 +778,88 @@ export default function OrdersConsolePage() {
                 accent="#ef4444"
               />
             </div>
-          </div>
+          </section>
         ) : null}
-        <div className="mb-4 grid gap-2 md:grid-cols-5">
-          {currentFilterOptions.map((filter) => (
-            <button
-              key={filter.id}
-              type="button"
-              className={`rounded-md border px-3 py-2 text-xs font-semibold ${activeFilter === filter.id ? 'bg-primary text-white' : ''}`}
-              onClick={() => setActiveFilter(filter.id)}
-            >
-              {filter.label} ({scopedOrders.filter(filter.match).length})
-            </button>
-          ))}
-        </div>
-        <div className="mb-3 inline-flex rounded-md border bg-white p-1 text-xs font-semibold">
-          <button
-            type="button"
-            className={`rounded px-3 py-1 ${boardView === 'order' ? 'bg-primary text-white' : 'text-muted-foreground'}`}
-            onClick={() => startTransition(() => setBoardView('order'))}
-          >
-            Order flow board
-          </button>
-          <button
-            type="button"
-            className={`rounded px-3 py-1 ${boardView === 'payment' ? 'bg-primary text-white' : 'text-muted-foreground'}`}
-            onClick={() => startTransition(() => setBoardView('payment'))}
-          >
-            Payment flow board
-          </button>
-        </div>
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <div
-            className={`inline-flex h-8 items-center rounded-full border px-3 text-xs font-semibold ${queueLiveStatusClass(queueLiveStatus)}`}
-            title="Realtime queue stream status"
-          >
-            {queueLiveStatusLabel(queueLiveStatus)}
-          </div>
-          <label htmlFor="admin-board-date" className="text-xs font-semibold text-muted-foreground">
-            Board date
-          </label>
-          <input
-            id="admin-board-date"
-            type="date"
-            className="h-8 rounded border px-2 text-xs"
-            value={reconDate ?? ''}
-            onChange={(e) => setReconDate(e.target.value)}
-          />
-          <button
-            type="button"
-            className="h-8 rounded border px-2 text-xs font-semibold"
-            onClick={() => setReconDate(businessToday ?? new Date().toISOString().slice(0, 10))}
-            disabled={Boolean(reconDate && businessToday && reconDate === businessToday)}
-          >
-            Reset to today
-          </button>
-        </div>
-        <div className="mb-4 grid gap-2 md:grid-cols-[1fr_auto_auto_auto]">
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by order id, name, phone..."
-            className="h-10 rounded-md border px-3 text-sm"
-          />
-          <button
-            type="button"
-            className="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-white"
-            onClick={() => void runSearch()}
-          >
-            Search
-          </button>
-          <button
-            type="button"
-            className="rounded-md border px-3 py-2 text-xs font-semibold"
-            onClick={() => void load({ silent: true })}
-          >
-            Refresh queue
-          </button>
-          <button
-            type="button"
-            className="rounded-md border px-3 py-2 text-xs font-semibold"
-            onClick={() => setDiagnosticsOpen(true)}
-          >
-            Diagnostics
-          </button>
-        </div>
-        {searchResults.length > 0 ? (
-          <div className="mb-4 rounded-lg border p-2">
-            <p className="mb-2 text-xs font-semibold text-muted-foreground">Support Search Results</p>
-            <div className="space-y-1">
-              {searchResults.map((o) => (
+
+        <div className="mb-4">
+          <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            Filter
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {currentFilterOptions.map((filter) => {
+              const count = scopedOrders.filter(filter.match).length;
+              const active = activeFilter === filter.id;
+              return (
                 <button
-                  key={`s-${o.id}`}
+                  key={filter.id}
                   type="button"
-                  className="flex w-full items-center justify-between rounded px-2 py-1 text-left hover:bg-muted/40"
-                  onClick={() => {
-                    setSelected(o);
-                    void loadOrderDetails(o.id);
-                  }}
+                  className={cn(
+                    'rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
+                    active
+                      ? 'border-primary bg-primary text-primary-foreground shadow-sm'
+                      : 'border-border/90 bg-background text-muted-foreground hover:border-border hover:bg-muted/50 hover:text-foreground',
+                  )}
+                  onClick={() => setActiveFilter(filter.id)}
                 >
-                  <span className="text-xs font-semibold">
-                    {o.id.slice(0, 8).toUpperCase()} • {o.customer?.name || 'Guest'}
+                  {filter.label}{' '}
+                  <span className={cn('tabular-nums', active ? 'text-primary-foreground/90' : 'text-muted-foreground')}>
+                    ({count})
                   </span>
-                  <span className="text-xs text-muted-foreground">{o.status}</span>
                 </button>
-              ))}
-            </div>
+              );
+            })}
           </div>
-        ) : null}
+        </div>
+
+        <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <SegmentedControl className="max-w-md">
+            <SegmentedControlItem
+              active={boardView === 'order'}
+              onClick={() => startTransition(() => setBoardView('order'))}
+            >
+              Order flow
+            </SegmentedControlItem>
+            <SegmentedControlItem
+              active={boardView === 'payment'}
+              onClick={() => startTransition(() => setBoardView('payment'))}
+            >
+              Payment flow
+            </SegmentedControlItem>
+          </SegmentedControl>
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 rounded-xl border border-border/70 bg-muted/25 px-3 py-2">
+            <span
+              className={cn(
+                'inline-flex shrink-0 items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold',
+                queueLiveStatusClass(queueLiveStatus),
+              )}
+              title="Realtime queue stream status"
+            >
+              {queueLiveStatusLabel(queueLiveStatus)}
+            </span>
+            <div className="mx-1 hidden h-6 w-px shrink-0 bg-border/80 sm:block" aria-hidden />
+            <label htmlFor="admin-board-date" className="sr-only">
+              Board date
+            </label>
+            <Input
+              id="admin-board-date"
+              type="date"
+              className="h-9 w-auto min-w-[10.5rem] shrink-0 text-xs"
+              value={reconDate ?? ''}
+              onChange={(e) => setReconDate(e.target.value)}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9 shrink-0 text-xs"
+              onClick={() => setReconDate(businessToday ?? new Date().toISOString().slice(0, 10))}
+              disabled={Boolean(reconDate && businessToday && reconDate === businessToday)}
+            >
+              Today
+            </Button>
+          </div>
+        </div>
+
         {/* Both boards stay mounted; visibility toggles to avoid unmount/remount cost on tab switch. */}
         <div className={boardView === 'order' ? 'block' : 'hidden'} aria-hidden={boardView !== 'order'}>
           <OrderQueueBoard
@@ -1016,47 +1083,85 @@ export default function OrdersConsolePage() {
         }}
       />
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent showCloseButton className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>
-              {editMode === 'customer' ? 'Edit customer details' : 'Edit fulfillment details'}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
+        <DialogContent
+          showCloseButton
+          className="z-[2320] gap-0 overflow-hidden border-0 p-0 sm:max-w-md"
+        >
+          <div className="border-b border-border px-6 pb-4 pt-6">
+            <DialogHeader className="space-y-1 text-left">
+              <DialogTitle>
+                {editMode === 'customer' ? 'Edit customer details' : 'Edit fulfillment details'}
+              </DialogTitle>
+              <p className="text-xs text-muted-foreground">
+                {editMode === 'customer'
+                  ? 'Updates name and phone on this order.'
+                  : 'Updates delivery address and table for this order.'}
+              </p>
+            </DialogHeader>
+          </div>
+          <div className="space-y-4 px-6 pb-2 pt-4">
             {editMode === 'customer' ? (
               <>
-                <input
-                  className="h-10 w-full rounded-md border px-3 text-sm"
-                  placeholder="Customer name"
-                  value={editCustomerName}
-                  onChange={(e) => setEditCustomerName(e.target.value)}
-                />
-                <input
-                  className="h-10 w-full rounded-md border px-3 text-sm"
-                  placeholder="Customer phone"
-                  value={editCustomerPhone}
-                  onChange={(e) => setEditCustomerPhone(e.target.value)}
-                />
+                <div className="space-y-2">
+                  <Label htmlFor="edit-customer-name" className="text-xs">
+                    Customer name
+                  </Label>
+                  <Input
+                    id="edit-customer-name"
+                    className="h-10"
+                    autoComplete="name"
+                    value={editCustomerName}
+                    onChange={(e) => setEditCustomerName(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-customer-phone" className="text-xs">
+                    Phone
+                  </Label>
+                  <Input
+                    id="edit-customer-phone"
+                    className="h-10"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    value={editCustomerPhone}
+                    onChange={(e) => setEditCustomerPhone(e.target.value)}
+                  />
+                </div>
               </>
             ) : (
               <>
-                <input
-                  className="h-10 w-full rounded-md border px-3 text-sm"
-                  placeholder="Delivery address"
-                  value={editDeliveryAddress}
-                  onChange={(e) => setEditDeliveryAddress(e.target.value)}
-                />
-                <input
-                  className="h-10 w-full rounded-md border px-3 text-sm"
-                  placeholder="Table number"
-                  value={editTableNumber}
-                  onChange={(e) => setEditTableNumber(e.target.value)}
-                />
+                <div className="space-y-2">
+                  <Label htmlFor="edit-delivery-address" className="text-xs">
+                    Delivery address
+                  </Label>
+                  <Input
+                    id="edit-delivery-address"
+                    className="h-10"
+                    value={editDeliveryAddress}
+                    onChange={(e) => setEditDeliveryAddress(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-table-number" className="text-xs">
+                    Table number
+                  </Label>
+                  <Input
+                    id="edit-table-number"
+                    className="h-10"
+                    value={editTableNumber}
+                    onChange={(e) => setEditTableNumber(e.target.value)}
+                  />
+                </div>
               </>
             )}
-            <button
+          </div>
+          <DialogFooter className="gap-2 border-t border-border px-6 py-4 sm:justify-end">
+            <Button type="button" variant="outline" className="h-10" onClick={() => setEditOpen(false)}>
+              Cancel
+            </Button>
+            <Button
               type="button"
-              className="w-full rounded-md bg-primary px-3 py-2 text-sm font-semibold text-white"
+              className="h-10 min-w-[8rem]"
               onClick={async () => {
                 if (!selected) return;
                 const saveRes = await api.patch(`/orders/${selected.id}/support`, {
@@ -1068,14 +1173,17 @@ export default function OrdersConsolePage() {
                 });
                 patchOrderRowsFromApi(selected.id, saveRes.data);
                 setEditOpen(false);
+                void loadOrderDetails(selected.id);
                 void refreshQueueAfterMutation({ withRecon: false });
               }}
             >
               Save changes
-            </button>
-          </div>
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
-    </PageStack>
+        </PageStack>
+      </div>
+    </div>
   );
 }

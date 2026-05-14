@@ -5,13 +5,51 @@ import { useTranslations } from 'next-intl';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useClientStore } from '../store/useClientStore';
 import { useMenuStore } from '../store/useMenuStore';
-import { MenuService } from '../services/api';
-import { MenuItem } from '@wrap-roll/contracts';
-import { Badge, Button, Card, Dialog, DialogContent, DialogHeader, DialogTitle } from '@wrap-roll/shared-ui';
+import { MenuService, CustomerApiService } from '../services/api';
+import {
+  MenuItem,
+  isMenuItemImageUrl,
+  MENU_ITEM_IMAGE_URL_MAX_LEN,
+  MENU_ITEM_REVIEW_REPLY_MAX_PHOTOS,
+  type MenuItemReviewSummary,
+  type PublicMenuItemReviewList,
+  type PublicMenuItemReviewRow,
+} from '@wrap-roll/contracts';
+import { Badge, Button, Card, Dialog, DialogContent, DialogHeader, DialogTitle, Label, Textarea } from '@wrap-roll/shared-ui';
+import { getBrowserSupabase } from '@/lib/supabase-browser';
 import { cn } from '@/lib/utils';
 import { WrapBuilder } from './WrapBuilder';
 import { CartSidebar } from './CartSidebar';
-import { Search, SlidersHorizontal, ChevronLeft, ChevronRight, Info, Leaf, Flame, Milk, Dumbbell, Wheat, Coffee } from 'lucide-react';
+import {
+  Search,
+  SlidersHorizontal,
+  ChevronLeft,
+  ChevronRight,
+  Info,
+  Leaf,
+  Flame,
+  Milk,
+  Dumbbell,
+  Wheat,
+  Coffee,
+  ThumbsUp,
+  MessageCircle,
+  ImagePlus,
+  X,
+} from 'lucide-react';
+
+function guestInitials(label: string): string {
+  const parts = label.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0] ?? ''}${parts[1][0] ?? ''}`.toUpperCase();
+}
+
+function formatGuestThreadDate(iso: string): string {
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return '';
+  return new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+}
 
 export function MenuBrowser() {
   const t = useTranslations('Menu');
@@ -58,6 +96,16 @@ export function MenuBrowser() {
     healthTips: string[];
     nutritionTags: Array<{ key: string; label: string }>;
   } | null>(null);
+  const [reviewBlock, setReviewBlock] = useState<{
+    summary: MenuItemReviewSummary;
+    list: PublicMenuItemReviewList;
+  } | null>(null);
+  const [reviewSession, setReviewSession] = useState(false);
+  const [replyDraft, setReplyDraft] = useState<Record<string, string>>({});
+  const [replyPhotoDrafts, setReplyPhotoDrafts] = useState<Record<string, string[]>>({});
+  const [replyPhotoErrors, setReplyPhotoErrors] = useState<Record<string, string | undefined>>({});
+  const [reviewActionKey, setReviewActionKey] = useState<string | null>(null);
+  const [replySigningLabel, setReplySigningLabel] = useState('');
   const categoryRailRef = useRef<HTMLDivElement | null>(null);
 
   const tagIcon = (key: string) => {
@@ -95,6 +143,49 @@ export function MenuBrowser() {
       });
   }, []);
 
+  useEffect(() => {
+    if (!infoOpen) return;
+    getBrowserSupabase()
+      ?.auth.getSession()
+      .then(({ data }) => setReviewSession(!!data.session))
+      .catch(() => setReviewSession(false));
+  }, [infoOpen]);
+
+  useEffect(() => {
+    if (!infoOpen || !reviewSession) {
+      setReplySigningLabel('');
+      return;
+    }
+    let cancelled = false;
+    CustomerApiService.getProfile()
+      .then((p) => {
+        if (cancelled) return;
+        const name = (p?.name ?? '').trim();
+        const email = (p?.email ?? '').trim();
+        setReplySigningLabel(name || email.split('@')[0] || 'You');
+      })
+      .catch(() => {
+        if (!cancelled) setReplySigningLabel('You');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [infoOpen, reviewSession]);
+
+  const refreshPublicReviews = useCallback(async () => {
+    const id = selectedInfo?.itemId;
+    if (!id) return;
+    try {
+      const [summary, list] = await Promise.all([
+        MenuService.getMenuItemReviewSummary(id).catch(() => null),
+        MenuService.getMenuItemPublicReviews(id, { page: 1, limit: 12 }).catch(() => null),
+      ]);
+      if (summary && list) setReviewBlock({ summary, list });
+    } catch {
+      /* ignore */
+    }
+  }, [selectedInfo?.itemId]);
+
   // Debounce search input
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -116,9 +207,15 @@ export function MenuBrowser() {
   const openInfoCard = async (itemId: string) => {
     setInfoOpen(true);
     setInfoLoading(true);
+    setReviewBlock(null);
     try {
-      const info = await MenuService.getMenuItemInfo(itemId);
+      const [info, summary, list] = await Promise.all([
+        MenuService.getMenuItemInfo(itemId),
+        MenuService.getMenuItemReviewSummary(itemId).catch(() => null),
+        MenuService.getMenuItemPublicReviews(itemId, { page: 1, limit: 8 }).catch(() => null),
+      ]);
       setSelectedInfo(info);
+      if (summary && list) setReviewBlock({ summary, list });
     } finally {
       setInfoLoading(false);
     }
@@ -314,6 +411,12 @@ export function MenuBrowser() {
                           <h3 className="mb-2 font-display text-2xl font-black text-neutral-900 line-clamp-1">
                             {item.name}
                           </h3>
+                          {(item.reviewCount ?? 0) > 0 && item.averageRating != null ? (
+                            <p className="mb-2 text-xs font-bold text-amber-700">
+                              ★ {item.averageRating.toFixed(1)} · {item.reviewCount} review
+                              {item.reviewCount === 1 ? '' : 's'}
+                            </p>
+                          ) : null}
                           <p className="mb-6 line-clamp-2 h-[2.8em] text-[0.9rem] font-medium leading-relaxed text-neutral-400">
                             {item.description}
                           </p>
@@ -416,12 +519,24 @@ export function MenuBrowser() {
         />
       )}
 
-      <Dialog open={infoOpen} onOpenChange={setInfoOpen}>
+      <Dialog
+        open={infoOpen}
+        onOpenChange={(open) => {
+          setInfoOpen(open);
+          if (!open) {
+            setReviewBlock(null);
+            setSelectedInfo(null);
+            setReplyDraft({});
+            setReplyPhotoDrafts({});
+            setReplyPhotoErrors({});
+          }
+        }}
+      >
         <DialogContent
           showCloseButton
-          className="overflow-hidden border-0 bg-white p-0 shadow-[0_32px_120px_-40px_rgba(15,23,42,0.45)] sm:max-w-2xl sm:rounded-[28px]"
+          className="flex max-h-[min(92dvh,900px)] flex-col gap-0 overflow-hidden border-0 bg-white p-0 shadow-[0_32px_120px_-40px_rgba(15,23,42,0.45)] sm:max-w-2xl sm:rounded-[28px]"
         >
-          <DialogHeader className="border-b border-neutral-100 bg-gradient-to-r from-primary/[0.08] via-white to-primary/[0.04] px-6 py-5 text-left sm:px-8">
+          <DialogHeader className="shrink-0 border-b border-neutral-100 bg-gradient-to-r from-primary/[0.08] via-white to-primary/[0.04] px-6 py-5 pr-12 text-left sm:px-8 sm:pr-14">
             <DialogTitle className="font-display text-2xl font-black tracking-tight text-neutral-900">
               {t('productInfoCard')}
             </DialogTitle>
@@ -429,6 +544,7 @@ export function MenuBrowser() {
               {t('productInfoSubtitle')}
             </p>
           </DialogHeader>
+          <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
           {infoLoading ? (
             <div className="px-8 py-10">
               <p className="text-sm text-muted-foreground">{t('loadingInfo')}</p>
@@ -490,8 +606,282 @@ export function MenuBrowser() {
                   ))}
                 </ul>
               </div>
+              {reviewBlock ? (
+                <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
+                  <p className="mb-1 text-sm font-semibold text-neutral-800">Guest ratings</p>
+                  <p className="text-xs text-muted-foreground">
+                    {reviewBlock.summary.reviewCount > 0
+                      ? `Average ${reviewBlock.summary.averageRating?.toFixed(1) ?? '—'} from ${reviewBlock.summary.reviewCount} verified reviews`
+                      : 'No public reviews yet'}
+                  </p>
+                  {(reviewBlock.list.items ?? []).length > 0 ? (
+                    <ul className="mt-4 space-y-4 border-t border-neutral-100 pt-4">
+                      {(reviewBlock.list.items ?? []).map((r: PublicMenuItemReviewRow) => {
+                        const photoUrls = r.photoUrls ?? [];
+                        const replies = r.replies ?? [];
+                        const replyCount = r.replyCount ?? 0;
+                        const helpfulCount = r.helpfulCount ?? 0;
+                        return (
+                        <li key={r.id} className="rounded-xl border border-neutral-100 bg-neutral-50/60 p-3 text-sm text-neutral-800">
+                          <div className="flex gap-3">
+                            <div
+                              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-orange-500 text-[11px] font-black text-white shadow-sm"
+                              aria-hidden
+                            >
+                              {guestInitials((r.authorLabel ?? '').trim() || 'Guest')}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                  <p className="truncate text-sm font-semibold text-neutral-900">
+                                    {(r.authorLabel ?? '').trim() || 'Guest'}
+                                    <span className="ml-1.5 font-normal text-[11px] text-muted-foreground">
+                                      · Verified purchase
+                                    </span>
+                                  </p>
+                                  <time
+                                    className="mt-0.5 block text-[11px] text-muted-foreground"
+                                    dateTime={r.createdAt}
+                                  >
+                                    {formatGuestThreadDate(r.createdAt)}
+                                  </time>
+                                  <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                                    <span className="font-semibold text-amber-700">{r.rating}★</span>
+                                    <span className="text-xs text-muted-foreground">
+                                      {replyCount} {replyCount === 1 ? 'reply' : 'replies'} · {helpfulCount}{' '}
+                                      found helpful
+                                    </span>
+                                  </div>
+                                </div>
+                                {reviewSession ? (
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8 shrink-0 gap-1 text-xs"
+                                    disabled={reviewActionKey === r.id}
+                                    onClick={() => {
+                                      void (async () => {
+                                        setReviewActionKey(r.id);
+                                        try {
+                                          await CustomerApiService.toggleMenuItemReviewHelpful(r.id);
+                                          await refreshPublicReviews();
+                                        } finally {
+                                          setReviewActionKey(null);
+                                        }
+                                      })();
+                                    }}
+                                  >
+                                    <ThumbsUp className="h-3.5 w-3.5" />
+                                    Helpful
+                                  </Button>
+                                ) : null}
+                              </div>
+                              {photoUrls.length > 0 ? (
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                  {photoUrls.map((url) => (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img
+                                      key={url.slice(0, 80)}
+                                      src={url}
+                                      alt=""
+                                      className="h-16 w-16 rounded-lg border border-neutral-200 object-cover"
+                                    />
+                                  ))}
+                                </div>
+                              ) : null}
+                              {r.comment ? (
+                                <p className="mt-2 text-neutral-700">{r.comment}</p>
+                              ) : (
+                                <p className="mt-2 text-xs italic text-muted-foreground">No written comment</p>
+                              )}
+                            </div>
+                          </div>
+                          {replies.length > 0 ? (
+                            <ul className="mt-3 space-y-3 border-l-2 border-orange-200 pl-3">
+                              {replies.map((rep) => {
+                                const repPhotos = rep.photoUrls ?? [];
+                                return (
+                                  <li key={rep.id} className="text-xs text-neutral-700">
+                                    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                                      <span className="font-semibold text-neutral-900">{rep.authorLabel}</span>
+                                      {rep.authorKind === 'staff' ? (
+                                        <span className="rounded bg-orange-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-orange-800">
+                                          Team
+                                        </span>
+                                      ) : null}
+                                      <time
+                                        className="text-[10px] text-muted-foreground"
+                                        dateTime={rep.createdAt}
+                                      >
+                                        {formatGuestThreadDate(rep.createdAt)}
+                                      </time>
+                                    </div>
+                                    {rep.body ? (
+                                      <span className="mt-1 block text-neutral-600">{rep.body}</span>
+                                    ) : null}
+                                    {repPhotos.length > 0 ? (
+                                      <div className="mt-1.5 flex flex-wrap gap-1.5">
+                                        {repPhotos.map((url) => (
+                                          // eslint-disable-next-line @next/next/no-img-element
+                                          <img
+                                            key={url.slice(0, 80)}
+                                            src={url}
+                                            alt=""
+                                            className="h-12 w-12 rounded-md border border-neutral-200 object-cover"
+                                          />
+                                        ))}
+                                      </div>
+                                    ) : null}
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          ) : null}
+                          {reviewSession ? (
+                            <div className="mt-3 rounded-lg border border-dashed border-neutral-200 bg-white p-2">
+                              <Label className="text-[10px] uppercase text-muted-foreground">Your reply</Label>
+                              {replySigningLabel ? (
+                                <p className="mt-1 text-[11px] text-neutral-600">
+                                  Posting as{' '}
+                                  <span className="font-semibold text-neutral-900">{replySigningLabel}</span>
+                                </p>
+                              ) : null}
+                              <Textarea
+                                className="mt-1 min-h-[56px] text-xs"
+                                placeholder="Add a public reply…"
+                                value={replyDraft[r.id] ?? ''}
+                                onChange={(e) =>
+                                  setReplyDraft((prev) => ({ ...prev, [r.id]: e.target.value }))
+                                }
+                                maxLength={2000}
+                              />
+                              <Label className="mt-2 text-[10px] uppercase text-muted-foreground">
+                                Photos (optional)
+                              </Label>
+                              <div className="mt-1 flex flex-wrap items-center gap-2">
+                                {(replyPhotoDrafts[r.id] ?? []).map((url, idx) => (
+                                  <div
+                                    key={`${r.id}-${idx}-${url.slice(0, 24)}`}
+                                    className="relative h-12 w-12 shrink-0"
+                                  >
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
+                                      src={url}
+                                      alt=""
+                                      className="h-full w-full rounded-md border border-neutral-200 object-cover"
+                                    />
+                                    <button
+                                      type="button"
+                                      className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-neutral-900 text-white shadow"
+                                      aria-label="Remove photo"
+                                      onClick={() =>
+                                        setReplyPhotoDrafts((prev) => ({
+                                          ...prev,
+                                          [r.id]: (prev[r.id] ?? []).filter((_, i) => i !== idx),
+                                        }))
+                                      }
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </button>
+                                  </div>
+                                ))}
+                                {(replyPhotoDrafts[r.id] ?? []).length < MENU_ITEM_REVIEW_REPLY_MAX_PHOTOS ? (
+                                  <>
+                                    <input
+                                      id={`reply-photos-${r.id}`}
+                                      type="file"
+                                      accept="image/png,image/jpeg,image/webp,image/gif"
+                                      className="sr-only"
+                                      onChange={(e) => {
+                                        setReplyPhotoErrors((prev) => ({ ...prev, [r.id]: undefined }));
+                                        const file = e.target.files?.[0];
+                                        e.target.value = '';
+                                        if (!file) return;
+                                        const reader = new FileReader();
+                                        reader.onload = () => {
+                                          const dataUrl = typeof reader.result === 'string' ? reader.result : '';
+                                          if (!dataUrl || dataUrl.length > MENU_ITEM_IMAGE_URL_MAX_LEN) {
+                                            setReplyPhotoErrors((prev) => ({
+                                              ...prev,
+                                              [r.id]: 'That image is too large. Try a smaller photo.',
+                                            }));
+                                            return;
+                                          }
+                                          if (!isMenuItemImageUrl(dataUrl)) {
+                                            setReplyPhotoErrors((prev) => ({
+                                              ...prev,
+                                              [r.id]: 'Unsupported image format.',
+                                            }));
+                                            return;
+                                          }
+                                          setReplyPhotoDrafts((prev) => {
+                                            const cur = prev[r.id] ?? [];
+                                            if (cur.length >= MENU_ITEM_REVIEW_REPLY_MAX_PHOTOS) return prev;
+                                            return { ...prev, [r.id]: [...cur, dataUrl] };
+                                          });
+                                        };
+                                        reader.readAsDataURL(file);
+                                      }}
+                                    />
+                                    <label
+                                      htmlFor={`reply-photos-${r.id}`}
+                                      className="flex h-12 w-12 cursor-pointer items-center justify-center rounded-md border border-dashed border-neutral-300 bg-neutral-50 text-neutral-500 transition-colors hover:border-orange-300 hover:text-orange-600"
+                                    >
+                                      <ImagePlus className="h-5 w-5" />
+                                    </label>
+                                  </>
+                                ) : null}
+                              </div>
+                              {replyPhotoErrors[r.id] ? (
+                                <p className="mt-1 text-[11px] text-destructive">{replyPhotoErrors[r.id]}</p>
+                              ) : null}
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="secondary"
+                                className="mt-2 h-7 text-xs"
+                                disabled={reviewActionKey === `${r.id}:reply`}
+                                onClick={() => {
+                                  const body = (replyDraft[r.id] ?? '').trim();
+                                  const photos = replyPhotoDrafts[r.id] ?? [];
+                                  if (!body && photos.length === 0) return;
+                                  void (async () => {
+                                    setReviewActionKey(`${r.id}:reply`);
+                                    try {
+                                      await CustomerApiService.addMenuItemReviewReply(r.id, {
+                                        body,
+                                        ...(photos.length ? { photoUrls: photos } : {}),
+                                      });
+                                      setReplyDraft((prev) => ({ ...prev, [r.id]: '' }));
+                                      setReplyPhotoDrafts((prev) => ({ ...prev, [r.id]: [] }));
+                                      setReplyPhotoErrors((prev) => ({ ...prev, [r.id]: undefined }));
+                                      await refreshPublicReviews();
+                                    } finally {
+                                      setReviewActionKey(null);
+                                    }
+                                  })();
+                                }}
+                              >
+                                <MessageCircle className="mr-1 h-3.5 w-3.5" />
+                                Post reply
+                              </Button>
+                            </div>
+                          ) : (
+                            <p className="mt-2 text-[11px] text-muted-foreground">
+                              Sign in to react or join the thread on public reviews.
+                            </p>
+                          )}
+                        </li>
+                        );
+                      })}
+                    </ul>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           )}
+          </div>
         </DialogContent>
       </Dialog>
 

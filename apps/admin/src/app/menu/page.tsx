@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import api from '../../services/api';
 import {
   Plus,
@@ -8,7 +8,6 @@ import {
   Trash2,
   Save,
   Package,
-  RefreshCw,
   Settings2,
   ChefHat,
   Blend,
@@ -28,7 +27,6 @@ import {
   IconButton,
   Input,
   Label,
-  PageHeader,
   SharedDataGrid,
   SharedDataGridColumn,
   Textarea,
@@ -36,6 +34,13 @@ import {
 import type { MenuRecipeLineInput, ModifierGroupInput } from '@wrap-roll/contracts';
 import { ModifierBuilder } from '../../components/menu/ModifierBuilder';
 import { RecipeBuilder } from '../../components/menu/RecipeBuilder';
+import { AdminPageHeader } from '../../components/AdminPageHeader';
+import {
+  adminPageContainerClass,
+  adminPageDenseStackClass,
+  adminPageRootClass,
+  adminSectionEyebrowClass,
+} from '../../lib/admin-ui-contract';
 import {
   ModifierDeltaBuilder,
   type ModifierIngredientDelta,
@@ -44,6 +49,10 @@ import {
   MenuItemPhotoEditor,
   type MenuItemPhotoEditorHandle,
 } from '../../components/menu/MenuItemPhotoEditor';
+
+/** Tighter panels inside the menu modal only (avoid shared adminElevatedPanelClass p-8). */
+const menuModalPanelClass =
+  'space-y-3 rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5';
 
 interface MenuItem {
   itemId: string;
@@ -108,6 +117,15 @@ type IngredientOption = {
   lowStockThreshold: number;
 };
 
+/** Dedupe by id — later entries win (fresher stock from search vs recipe snapshot). */
+function mergeIngredientOptions(prev: IngredientOption[], next: IngredientOption[]): IngredientOption[] {
+  if (next.length === 0) return prev;
+  const map = new Map<string, IngredientOption>();
+  for (const i of prev) map.set(i.id, i);
+  for (const i of next) map.set(i.id, i);
+  return Array.from(map.values());
+}
+
 export default function MenuManagement() {
   const [items, setItems] = useState<MenuItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -127,12 +145,11 @@ export default function MenuManagement() {
   const [jsonMode, setJsonMode] = useState(false);
   const [jsonDraft, setJsonDraft] = useState('[]');
   const [jsonError, setJsonError] = useState<string | null>(null);
-  const [activeRecipeMenuId, setActiveRecipeMenuId] = useState<string | null>(null);
-  const [workspaceRecipeLines, setWorkspaceRecipeLines] = useState<MenuRecipeLineInput[]>([]);
-  const [savingRecipe, setSavingRecipe] = useState(false);
   const [editorSection, setEditorSection] = useState<'details' | 'modifiers' | 'recipe' | 'impacts'>('details');
   const [menuPhotoError, setMenuPhotoError] = useState<string | null>(null);
   const photoEditorRef = useRef<MenuItemPhotoEditorHandle>(null);
+  /** Bumps when starting a new edit/create load so stale async recipe responses are ignored. */
+  const editLoadSessionRef = useRef(0);
   const [query, setQuery] = useState<MenuQuery>({
     page: 1,
     pageSize: 20,
@@ -173,8 +190,7 @@ export default function MenuManagement() {
   }, [query.page, query.pageSize, query.search, query.sortBy, query.sortDir, query.filters]);
 
   useEffect(() => {
-    fetchIngredients();
-    fetchCategories();
+    void fetchCategories();
   }, []);
 
   const fetchItems = async () => {
@@ -266,42 +282,81 @@ export default function MenuManagement() {
     }
   };
 
-  const fetchIngredients = async () => {
-    try {
-      const response = await api.get('/inventory?page=1&limit=500');
-      const source = Array.isArray(response.data) ? response.data : response.data?.items ?? [];
-      setIngredients(
-        source.map((item: any) => ({
-          id: String(item.id),
-          name: String(item.name),
-          unit: String(item.unit),
-          currentStock: Number(item.currentStock),
-          lowStockThreshold: Number(item.lowStockThreshold),
-        })),
-      );
-    } catch {
-      setIngredients([]);
-    }
-  };
-
-  const fetchRecipe = async (menuItemId: string) => {
-    const response = await api.get<MenuRecipeResponse>(`/menu/${menuItemId}/recipe`);
-    return response.data.lines.map((line) => ({
-      ingredientId: line.ingredientId,
-      quantityUsed: Number(line.quantityUsed),
+  /** Debounced server search for ingredient pickers (async; no full client-side import). */
+  const searchIngredientOptions = useCallback(async (query: string): Promise<IngredientOption[]> => {
+    const params = new URLSearchParams();
+    if (query.trim()) params.set('search', query.trim());
+    params.set('limit', '50');
+    params.set('page', '1');
+    params.set('sortBy', 'name');
+    params.set('sortDir', 'asc');
+    const response = await api.get<{
+      items?: unknown[];
+    }>(`/inventory?${params.toString()}`);
+    const body = response.data;
+    const raw = Array.isArray(body) ? body : body?.items ?? [];
+    const rows = Array.isArray(raw) ? raw : [];
+    return (rows as Array<Record<string, unknown>>).map((item) => ({
+      id: String(item.id),
+      name: String(item.name),
+      unit: String(item.unit),
+      currentStock: Number(item.currentStock),
+      lowStockThreshold: Number(item.lowStockThreshold),
     }));
-  };
+  }, []);
 
-  const fetchModifierDeltas = async (menuItemId: string) => {
+  /** One lightweight page — primes labels / modifier defaults; not paginating the entire inventory. */
+  const primeIngredientCatalog = useCallback(async (session?: number) => {
+    try {
+      const rows = await searchIngredientOptions('');
+      if (session !== undefined && editLoadSessionRef.current !== session) return;
+      setIngredients((prev) => mergeIngredientOptions(prev, rows));
+    } catch {
+      /* keep existing cache */
+    }
+  }, [searchIngredientOptions]);
+
+  const fetchRecipe = useCallback(
+    async (
+      menuItemId: string,
+    ): Promise<{ lines: MenuRecipeLineInput[]; ingredientSnapshots: IngredientOption[] }> => {
+      const { data } = await api.get<MenuRecipeResponse>(`/menu/${encodeURIComponent(menuItemId)}/recipe`);
+      const rows = Array.isArray(data?.lines) ? data.lines : [];
+      const lines: MenuRecipeLineInput[] = rows.map((line) => ({
+        ingredientId: String(line.ingredientId),
+        quantityUsed: Number(line.quantityUsed ?? 0),
+      }));
+      const ingredientSnapshots: IngredientOption[] = [];
+      const seen = new Set<string>();
+      for (const line of rows) {
+        const ing = line.ingredient;
+        if (!ing) continue;
+        const id = String(ing.id);
+        if (seen.has(id)) continue;
+        seen.add(id);
+        ingredientSnapshots.push({
+          id,
+          name: String(ing.name),
+          unit: String(ing.unit),
+          currentStock: Number(ing.currentStock),
+          lowStockThreshold: Number(ing.lowStockThreshold),
+        });
+      }
+      return { lines, ingredientSnapshots };
+    },
+    [],
+  );
+
+  const fetchModifierDeltas = useCallback(async (menuItemId: string) => {
     const response = await api.get<{ deltas: Array<{ optionId: string; ingredientId: string; quantityDelta: string }> }>(
-      `/menu/${menuItemId}/modifier-deltas`,
+      `/menu/${encodeURIComponent(menuItemId)}/modifier-deltas`,
     );
     return (response.data?.deltas ?? []).map((d) => ({
       optionId: d.optionId,
       ingredientId: d.ingredientId,
       quantityDelta: Number(d.quantityDelta),
     }));
-  };
+  }, []);
 
   const handleCreateOrUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -375,6 +430,8 @@ export default function MenuManagement() {
   };
 
   const openCreateModal = () => {
+    const session = ++editLoadSessionRef.current;
+    setIngredients([]);
     setEditingItem({
       name: '',
       categoryId: categories[0]?.id ?? '',
@@ -393,52 +450,45 @@ export default function MenuManagement() {
     setEditorSection('details');
     setMenuPhotoError(null);
     setIsModalOpen(true);
+    void primeIngredientCatalog(session);
   };
 
-  const openEditModal = async (item: MenuItem) => {
-    setMenuPhotoError(null);
-    setEditingItem(item);
-    const groups = Array.isArray(item.modifierGroups) ? item.modifierGroups : [];
-    setModifierGroups(groups);
-    setJsonDraft(JSON.stringify(groups, null, 2));
-    setJsonMode(false);
-    setJsonError(null);
-    setEditorSection('details');
-    try {
-      const lines = await fetchRecipe(item.itemId);
-      setRecipeLines(lines);
-    } catch {
-      setRecipeLines([]);
-    }
-    try {
-      const deltas = await fetchModifierDeltas(item.itemId);
-      setModifierDeltas(deltas);
-    } catch {
-      setModifierDeltas([]);
-    }
-    setIsModalOpen(true);
-  };
-
-  const openWorkspaceRecipe = async (menuItemId: string) => {
-    setActiveRecipeMenuId(menuItemId);
-    try {
-      const lines = await fetchRecipe(menuItemId);
-      setWorkspaceRecipeLines(lines);
-    } catch {
-      setWorkspaceRecipeLines([]);
-    }
-  };
-
-  const saveWorkspaceRecipe = async () => {
-    if (!activeRecipeMenuId) return;
-    setSavingRecipe(true);
-    try {
-      await api.put(`/menu/${activeRecipeMenuId}/recipe`, { lines: workspaceRecipeLines });
-      await fetchItems();
-    } finally {
-      setSavingRecipe(false);
-    }
-  };
+  const openEditModal = useCallback(
+    async (item: MenuItem, options?: { initialSection?: 'details' | 'modifiers' | 'recipe' | 'impacts' }) => {
+      const session = ++editLoadSessionRef.current;
+      setIngredients([]);
+      setMenuPhotoError(null);
+      setEditingItem(item);
+      const groups = Array.isArray(item.modifierGroups) ? item.modifierGroups : [];
+      setModifierGroups(groups);
+      setJsonDraft(JSON.stringify(groups, null, 2));
+      setJsonMode(false);
+      setJsonError(null);
+      try {
+        const { lines, ingredientSnapshots } = await fetchRecipe(item.itemId);
+        if (editLoadSessionRef.current !== session) return;
+        setRecipeLines(lines);
+        setIngredients((prev) => mergeIngredientOptions(prev, ingredientSnapshots));
+      } catch {
+        if (editLoadSessionRef.current !== session) return;
+        setRecipeLines([]);
+      }
+      try {
+        const deltas = await fetchModifierDeltas(item.itemId);
+        if (editLoadSessionRef.current !== session) return;
+        setModifierDeltas(deltas);
+      } catch {
+        if (editLoadSessionRef.current !== session) return;
+        setModifierDeltas([]);
+      }
+      if (editLoadSessionRef.current !== session) return;
+      await primeIngredientCatalog(session);
+      if (editLoadSessionRef.current !== session) return;
+      setEditorSection(options?.initialSection ?? 'details');
+      setIsModalOpen(true);
+    },
+    [fetchRecipe, fetchModifierDeltas, primeIngredientCatalog],
+  );
 
   const columns: SharedDataGridColumn<MenuItem>[] = useMemo(
     () => [
@@ -493,26 +543,33 @@ export default function MenuManagement() {
         label: 'Recipe',
         sortable: false,
         render: (item) => (
-          <Button size="sm" variant="outline" onClick={() => openWorkspaceRecipe(item.itemId)}>
-            Manage Recipe
+          <Button
+            size="sm"
+            variant="outline"
+            type="button"
+            onClick={() => void openEditModal(item, { initialSection: 'recipe' })}
+          >
+            Recipe
           </Button>
         ),
       },
     ],
-    [],
+    [openEditModal],
   );
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Menu Control"
-        description="Manage your catalog, prices, and modifier groups."
-        actions={
-          <Button onClick={openCreateModal} className="flex items-center gap-2">
-            <Plus className="h-4 w-4" /> Add New Item
-          </Button>
-        }
-      />
+    <div className={adminPageRootClass}>
+      <div className={adminPageContainerClass}>
+        <div className={adminPageDenseStackClass}>
+          <AdminPageHeader
+            title="Menu Control"
+            description="Catalog, pricing, modifiers, recipes, and ingredient impacts — edit any item to manage its recipe on the Recipe tab."
+            actions={
+              <Button onClick={openCreateModal} className="flex items-center gap-2">
+                <Plus className="h-4 w-4" /> Add New Item
+              </Button>
+            }
+          />
 
       <DataPanel>
         <div className="mb-4 space-y-3 rounded-xl border p-4">
@@ -638,65 +695,12 @@ export default function MenuManagement() {
         />
       </DataPanel>
 
-      <DataPanel>
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-lg font-bold">Advanced Recipe Workspace</h3>
-          <Button
-            variant="outline"
-            onClick={() => activeRecipeMenuId && openWorkspaceRecipe(activeRecipeMenuId)}
-            disabled={!activeRecipeMenuId}
-          >
-            <RefreshCw className="h-4 w-4" />
-            Refresh
-          </Button>
-        </div>
-        <div className="mb-3">
-          <Label htmlFor="recipe-workspace-menu">Select menu item</Label>
-          <select
-            id="recipe-workspace-menu"
-            className="mt-1 h-10 w-full rounded-md border bg-background px-3 text-sm"
-            value={activeRecipeMenuId ?? ''}
-            onChange={async (e) => {
-              const value = e.target.value || null;
-              setActiveRecipeMenuId(value);
-              if (value) {
-                await openWorkspaceRecipe(value);
-              } else {
-                setWorkspaceRecipeLines([]);
-              }
-            }}
-          >
-            <option value="">Choose menu item...</option>
-            {items.map((item) => (
-              <option key={item.itemId} value={item.itemId}>
-                {item.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        {activeRecipeMenuId ? (
-          <div className="space-y-3">
-            <RecipeBuilder
-              ingredients={ingredients}
-              lines={workspaceRecipeLines}
-              onChange={setWorkspaceRecipeLines}
-            />
-            <Button onClick={saveWorkspaceRecipe} disabled={savingRecipe}>
-              {savingRecipe ? 'Saving...' : 'Save Recipe Lines'}
-            </Button>
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            Choose a menu item to manage ingredient quantity relations.
-          </p>
-        )}
-      </DataPanel>
-
       <Dialog
         open={isModalOpen}
         onOpenChange={(open) => {
           setIsModalOpen(open);
           if (!open) {
+            editLoadSessionRef.current += 1;
             setEditingItem(null);
             setJsonError(null);
             setEditorSection('details');
@@ -706,145 +710,177 @@ export default function MenuManagement() {
       >
         <DialogContent
           showCloseButton
-          className="flex max-h-[92vh] w-full max-w-[min(1024px,calc(100vw-2rem))] flex-col overflow-hidden border-0 bg-white p-0 shadow-[0_32px_120px_-40px_rgba(15,23,42,0.42)] sm:max-w-[min(1024px,calc(100vw-2rem))]"
+          className="flex max-h-[min(88vh,900px)] w-full max-w-[calc(100vw-1.25rem)] flex-col overflow-hidden gap-0 rounded-xl border border-border bg-card p-0 shadow-xl sm:max-w-2xl"
         >
-          <DialogHeader className="border-b border-neutral-100 bg-gradient-to-r from-primary/[0.08] via-white to-primary/[0.04] px-8 py-6 text-left sm:px-10 sm:py-7">
-            <DialogTitle className="font-display text-2xl font-black tracking-tight text-neutral-900">
-              {editingItem?.itemId ? 'Edit Menu Item' : 'Add New Menu Item'}
+          <DialogHeader className="border-b border-border bg-muted/25 px-5 py-3.5 text-left sm:px-6">
+            <DialogTitle className="pr-10 text-lg font-bold tracking-tight">
+              {editingItem?.itemId ? 'Edit menu item' : 'New menu item'}
             </DialogTitle>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
-              Structured editor for details, modifiers, recipes and ingredient impacts
+            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              One section at a time — switch tabs to edit each part
             </p>
-            <div className="mt-5 flex flex-wrap items-center gap-2.5 md:flex-nowrap md:gap-3">
-              <Button type="button" size="default" variant={editorSection === 'details' ? 'default' : 'outline'} onClick={() => setEditorSection('details')}>
-                <Package className="mr-1.5 h-4 w-4" /> Details
+            <div
+              className="mt-3.5 flex flex-wrap gap-1.5"
+              role="tablist"
+              aria-label="Menu item editor sections"
+            >
+              <Button
+                type="button"
+                size="sm"
+                variant={editorSection === 'details' ? 'default' : 'outline'}
+                className="h-8 gap-1 px-2.5 text-xs"
+                onClick={() => setEditorSection('details')}
+              >
+                <Package className="h-3.5 w-3.5" /> Details
               </Button>
-              <Button type="button" size="default" variant={editorSection === 'modifiers' ? 'default' : 'outline'} onClick={() => setEditorSection('modifiers')}>
-                <Settings2 className="mr-1.5 h-4 w-4" /> Modifiers
+              <Button
+                type="button"
+                size="sm"
+                variant={editorSection === 'modifiers' ? 'default' : 'outline'}
+                className="h-8 gap-1 px-2.5 text-xs"
+                onClick={() => setEditorSection('modifiers')}
+              >
+                <Settings2 className="h-3.5 w-3.5" /> Modifiers
               </Button>
-              <Button type="button" size="default" variant={editorSection === 'recipe' ? 'default' : 'outline'} onClick={() => setEditorSection('recipe')}>
-                <ChefHat className="mr-1.5 h-4 w-4" /> Recipe
+              <Button
+                type="button"
+                size="sm"
+                variant={editorSection === 'recipe' ? 'default' : 'outline'}
+                className="h-8 gap-1 px-2.5 text-xs"
+                onClick={() => setEditorSection('recipe')}
+              >
+                <ChefHat className="h-3.5 w-3.5" /> Recipe
               </Button>
-              <Button type="button" size="default" variant={editorSection === 'impacts' ? 'default' : 'outline'} onClick={() => setEditorSection('impacts')}>
-                <Blend className="mr-1.5 h-4 w-4" /> Ingredient Impacts
+              <Button
+                type="button"
+                size="sm"
+                variant={editorSection === 'impacts' ? 'default' : 'outline'}
+                className="h-8 gap-1 px-2.5 text-xs"
+                title="Ingredient deltas when a modifier option is chosen"
+                onClick={() => setEditorSection('impacts')}
+              >
+                <Blend className="h-3.5 w-3.5" /> Impacts
               </Button>
             </div>
           </DialogHeader>
 
           <form onSubmit={handleCreateOrUpdate} className="flex min-h-0 flex-1 flex-col">
-            <div className="min-h-0 flex-1 overflow-y-auto bg-neutral-50/40 px-8 py-8 sm:px-10 sm:py-10">
-              <div className="mx-auto w-full max-w-none space-y-8">
+            <div className="min-h-0 flex-1 overflow-y-auto bg-muted/20 px-4 py-4 sm:px-5">
+              <div className="mx-auto w-full space-y-4">
                 {menuPhotoError ? (
-                  <p className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-2 text-sm text-destructive">
+                  <p className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
                     {menuPhotoError}
                   </p>
                 ) : null}
-                <div className="rounded-2xl border bg-white p-6 shadow-sm sm:p-8">
-                  <h4 className="text-sm font-semibold uppercase tracking-[0.12em] text-neutral-500">Core details</h4>
-                  <div className="mt-6 grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-2">
-                    <div className="flex flex-col gap-2">
-                      <Label htmlFor="menu-item-name">Item Name</Label>
-                      <Input
-                        id="menu-item-name"
-                        required
-                        className="h-11 bg-muted/40"
-                        value={editingItem?.name || ''}
-                        onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
+
+                {editorSection === 'details' ? (
+                  <div className={menuModalPanelClass}>
+                    <h4 className={adminSectionEyebrowClass}>Details</h4>
+                    <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <div className="flex flex-col gap-1.5">
+                        <Label htmlFor="menu-item-name">Item name</Label>
+                        <Input
+                          id="menu-item-name"
+                          required
+                          className="h-9 bg-muted/50"
+                          value={editingItem?.name || ''}
+                          onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <Label htmlFor="menu-item-category">Category</Label>
+                        <select
+                          id="menu-item-category"
+                          required
+                          className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                          value={editingItem?.categoryId || ''}
+                          onChange={(e) => {
+                            const categoryId = e.target.value;
+                            const categoryName = categories.find((category) => category.id === categoryId)?.name ?? '';
+                            setEditingItem({ ...editingItem, categoryId, categoryName });
+                          }}
+                        >
+                          <option value="">Select…</option>
+                          {categories.map((category) => (
+                            <option key={category.id} value={category.id}>
+                              {category.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    <div className="mt-4 flex flex-col gap-1.5">
+                      <Label htmlFor="menu-item-description">Description</Label>
+                      <Textarea
+                        id="menu-item-description"
+                        rows={2}
+                        className="min-h-[4rem] resize-y bg-muted/50"
+                        value={editingItem?.description || ''}
+                        onChange={(e) => setEditingItem({ ...editingItem, description: e.target.value })}
                       />
                     </div>
-                    <div className="flex flex-col gap-2">
-                      <Label htmlFor="menu-item-category">Category</Label>
-                      <select
-                        id="menu-item-category"
-                        required
-                        className="h-11 rounded-md border bg-background px-3 text-sm"
-                        value={editingItem?.categoryId || ''}
-                        onChange={(e) => {
-                          const categoryId = e.target.value;
-                          const categoryName = categories.find((category) => category.id === categoryId)?.name ?? '';
-                          setEditingItem({ ...editingItem, categoryId, categoryName });
-                        }}
-                      >
-                        <option value="">Select a category...</option>
-                        {categories.map((category) => (
-                          <option key={category.id} value={category.id}>
-                            {category.name}
-                          </option>
-                        ))}
-                      </select>
+                    <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+                      <div className="flex max-w-full flex-col gap-1.5 sm:max-w-[11rem]">
+                        <Label htmlFor="menu-item-price">Base price</Label>
+                        <Input
+                          id="menu-item-price"
+                          type="number"
+                          step="0.01"
+                          required
+                          className="h-9 bg-muted/50"
+                          value={editingItem?.basePrice || 0}
+                          onChange={(e) =>
+                            setEditingItem({ ...editingItem, basePrice: parseFloat(e.target.value) })
+                          }
+                        />
+                      </div>
+                      <div className="flex max-w-full flex-col gap-1.5 sm:max-w-[11rem]">
+                        <Label htmlFor="menu-item-prep-time">Prep (min)</Label>
+                        <Input
+                          id="menu-item-prep-time"
+                          type="number"
+                          min={0}
+                          required
+                          className="h-9 bg-muted/50"
+                          value={editingItem?.prepTimeMinutes ?? 0}
+                          onChange={(e) =>
+                            setEditingItem({ ...editingItem, prepTimeMinutes: Number(e.target.value) })
+                          }
+                        />
+                      </div>
+                      <div className="flex min-w-0 flex-col gap-1.5">
+                        <Label>Availability</Label>
+                        <select
+                          className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                          value={editingItem?.availability || 'available'}
+                          onChange={(e) =>
+                            setEditingItem({
+                              ...editingItem,
+                              availability: e.target.value as MenuItem['availability'],
+                            })
+                          }
+                        >
+                          <option value="available">Available</option>
+                          <option value="sold_out">Sold out</option>
+                          <option value="limited">Limited</option>
+                        </select>
+                      </div>
                     </div>
-                  </div>
-                  <div className="mt-7 flex flex-col gap-2">
-                    <Label htmlFor="menu-item-description">Description</Label>
-                    <Textarea
-                      id="menu-item-description"
-                      rows={3}
-                      className="min-h-[5.5rem] resize-y bg-muted/40"
-                      value={editingItem?.description || ''}
-                      onChange={(e) => setEditingItem({ ...editingItem, description: e.target.value })}
+                    <MenuItemPhotoEditor
+                      ref={photoEditorRef}
+                      imageUrl={editingItem?.imageUrl}
+                      onChange={(url) =>
+                        setEditingItem((prev) => (prev ? { ...prev, imageUrl: url } : null))
+                      }
+                      onClientError={setMenuPhotoError}
                     />
                   </div>
-                  <div className="mt-7 grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-2 xl:grid-cols-3">
-                    <div className="flex flex-col gap-2">
-                      <Label htmlFor="menu-item-price">Base Price</Label>
-                      <Input
-                        id="menu-item-price"
-                        type="number"
-                        step="0.01"
-                        required
-                        className="h-11 bg-muted/40"
-                        value={editingItem?.basePrice || 0}
-                        onChange={(e) =>
-                          setEditingItem({ ...editingItem, basePrice: parseFloat(e.target.value) })
-                        }
-                      />
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <Label htmlFor="menu-item-prep-time">Prep Time (min)</Label>
-                      <Input
-                        id="menu-item-prep-time"
-                        type="number"
-                        min={0}
-                        required
-                        className="h-11 bg-muted/40"
-                        value={editingItem?.prepTimeMinutes ?? 0}
-                        onChange={(e) =>
-                          setEditingItem({ ...editingItem, prepTimeMinutes: Number(e.target.value) })
-                        }
-                      />
-                    </div>
-                    <div className="flex min-w-0 flex-col gap-2 md:col-span-2 xl:col-span-1">
-                      <Label>Availability</Label>
-                      <select
-                        className="h-11 rounded-md border bg-background px-3 text-sm"
-                        value={editingItem?.availability || 'available'}
-                        onChange={(e) =>
-                          setEditingItem({
-                            ...editingItem,
-                            availability: e.target.value as MenuItem['availability'],
-                          })
-                        }
-                      >
-                        <option value="available">Available</option>
-                        <option value="sold_out">Sold Out</option>
-                        <option value="limited">Limited</option>
-                      </select>
-                    </div>
-                  </div>
-                  <MenuItemPhotoEditor
-                    ref={photoEditorRef}
-                    imageUrl={editingItem?.imageUrl}
-                    onChange={(url) =>
-                      setEditingItem((prev) => (prev ? { ...prev, imageUrl: url } : null))
-                    }
-                    onClientError={setMenuPhotoError}
-                  />
-                </div>
+                ) : null}
 
                 {editorSection === 'modifiers' ? (
-                  <div className="space-y-4 rounded-2xl border bg-white p-6 shadow-sm sm:p-8">
+                  <div className={menuModalPanelClass}>
                     <div className="flex items-center justify-between">
-                      <h4 className="text-sm font-semibold uppercase tracking-[0.12em] text-neutral-500">Modifier authoring</h4>
+                      <h4 className={adminSectionEyebrowClass}>Modifier authoring</h4>
                       <Button
                         type="button"
                         size="sm"
@@ -891,7 +927,7 @@ export default function MenuManagement() {
                               setJsonError('Invalid JSON');
                             }
                           }}
-                          className="min-h-[220px] bg-muted/40 font-mono text-sm"
+                          className="min-h-[160px] bg-muted/40 font-mono text-sm sm:min-h-[180px]"
                         />
                         {jsonError ? <p className="text-xs text-destructive">{jsonError}</p> : null}
                       </div>
@@ -908,21 +944,27 @@ export default function MenuManagement() {
                 ) : null}
 
                 {editorSection === 'recipe' ? (
-                  <div className="space-y-4 rounded-2xl border bg-white p-6 shadow-sm sm:p-8">
-                    <h4 className="text-sm font-semibold uppercase tracking-[0.12em] text-neutral-500">Recipe builder</h4>
-                    <RecipeBuilder ingredients={ingredients} lines={recipeLines} onChange={setRecipeLines} />
+                  <div className={menuModalPanelClass}>
+                    <h4 className={adminSectionEyebrowClass}>Recipe builder</h4>
+                    <RecipeBuilder
+                      ingredients={ingredients}
+                      fetchIngredientOptions={searchIngredientOptions}
+                      lines={recipeLines}
+                      onChange={setRecipeLines}
+                    />
                   </div>
                 ) : null}
 
                 {editorSection === 'impacts' ? (
-                  <div className="space-y-4 rounded-2xl border bg-white p-6 shadow-sm sm:p-8">
-                    <h4 className="text-sm font-semibold uppercase tracking-[0.12em] text-neutral-500">Modifier to ingredient impacts</h4>
+                  <div className={menuModalPanelClass}>
+                    <h4 className={adminSectionEyebrowClass}>Modifier to ingredient impacts</h4>
                     <p className="text-xs text-muted-foreground">
                       These deltas are applied on top of the base recipe when a modifier option is selected.
                     </p>
                     <ModifierDeltaBuilder
                       modifierGroups={modifierGroups}
                       ingredients={ingredients}
+                      fetchIngredientOptions={searchIngredientOptions}
                       value={modifierDeltas}
                       onChange={setModifierDeltas}
                     />
@@ -931,9 +973,9 @@ export default function MenuManagement() {
               </div>
             </div>
 
-            <DialogFooter className="border-t bg-white px-8 py-5 sm:px-10 sm:justify-between">
-              <div className="text-xs font-medium text-muted-foreground">
-                Section: <span className="font-semibold capitalize text-foreground">{editorSection}</span>
+            <DialogFooter className="border-t border-border bg-card px-4 py-3 sm:px-5 sm:justify-between">
+              <div className="hidden text-xs text-muted-foreground sm:block">
+                <span className="capitalize">{editorSection}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
@@ -948,6 +990,8 @@ export default function MenuManagement() {
           </form>
         </DialogContent>
       </Dialog>
+        </div>
+      </div>
     </div>
   );
 }

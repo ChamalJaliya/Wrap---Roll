@@ -34,7 +34,6 @@ import {
   DataPanel,
   EmptyState,
   MetricCard,
-  PageHeader,
   PageStack,
   Table,
   TableBody,
@@ -48,11 +47,12 @@ import type {
   SalesStatPoint,
   DatedMarginReport,
   ItemMargin,
-  PaymentReconciliation,
   DailySalesReport,
   DailyIngredientConsumptionReport,
 } from '@wrap-roll/contracts';
 import { ANALYTICS_GROUPINGS } from '@wrap-roll/contracts';
+import { AdminPageHeader } from '../../components/AdminPageHeader';
+import { adminHexBackground, adminPageContainerClass, adminPageRootClass } from '../../lib/admin-ui-contract';
 
 // All response types imported from @wrap-roll/contracts above.
 // SalesStatPoint, DatedMarginReport, ItemMargin, PaymentReconciliation, DailySalesReport
@@ -89,7 +89,7 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
       <p className="mb-1.5 font-bold text-muted-foreground">{label}</p>
       {payload.map((p) => (
         <div key={p.name} className="flex items-center gap-2">
-          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: p.color }} />
+          <span className="h-2.5 w-2.5 rounded-full" style={adminHexBackground(p.color)} />
           <span className="capitalize">{p.name}:</span>
           <span className="font-semibold">
             {typeof p.value === 'number' && p.name?.toLowerCase().includes('revenue')
@@ -115,7 +115,6 @@ export default function AnalyticsDashboard() {
   const [salesStats, setSalesStats] = useState<SalesStatPoint[]>([]);
   const [grossMargin, setGrossMargin] = useState<DatedMarginReport | null>(null);
   const [itemMargins, setItemMargins] = useState<ItemMargin[]>([]);
-  const [reconciliation, setReconciliation] = useState<PaymentReconciliation | null>(null);
   const [dailyToday, setDailyToday] = useState<DailySalesReport | null>(null);
   const [consumption, setConsumption] = useState<DailyIngredientConsumptionReport | null>(null);
 
@@ -123,11 +122,10 @@ export default function AnalyticsDashboard() {
     setLoading(true);
     setError(null);
     try {
-      const [statsRes, marginRes, itemRes, reconRes, dailyRes, consumptionRes] = await Promise.allSettled([
+      const [statsRes, marginRes, itemRes, dailyRes, consumptionRes] = await Promise.allSettled([
         api.get(`/analytics/sales?startDate=${startDate}&endDate=${endDate}&grouping=${grouping}`),
         api.get(`/analytics/margin/gross?startDate=${startDate}&endDate=${endDate}`),
         api.get('/analytics/margins'),
-        api.get('/analytics/payments/reconciliation'),
         api.get('/analytics/sales/daily'),
         api.get(`/analytics/inventory/daily-consumption?startDate=${startDate}&endDate=${endDate}`),
       ]);
@@ -135,7 +133,6 @@ export default function AnalyticsDashboard() {
       if (statsRes.status === 'fulfilled') setSalesStats(statsRes.value.data as SalesStatPoint[]);
       if (marginRes.status === 'fulfilled') setGrossMargin(marginRes.value.data as DatedMarginReport);
       if (itemRes.status === 'fulfilled') setItemMargins(itemRes.value.data as ItemMargin[]);
-      if (reconRes.status === 'fulfilled') setReconciliation(reconRes.value.data as PaymentReconciliation);
       if (dailyRes.status === 'fulfilled') setDailyToday(dailyRes.value.data as DailySalesReport);
       if (consumptionRes.status === 'fulfilled') {
         setConsumption(consumptionRes.value.data as DailyIngredientConsumptionReport);
@@ -257,12 +254,13 @@ export default function AnalyticsDashboard() {
   /* ─── Render ─────────────────────────────────────────────────────────────── */
 
   return (
-    <PageStack>
-      {/* Header */}
-      <PageHeader
-        title="Business Analytics"
-        description="Financial intelligence — revenue, margins, COGS, ingredient usage (restocking), and reconciliation."
-        actions={
+    <div className={adminPageRootClass}>
+      <div className={adminPageContainerClass}>
+        <PageStack>
+          <AdminPageHeader
+            title="Business Analytics"
+            description="Financial intelligence — revenue, margins, COGS, and ingredient usage (restocking). Cash reconciliation lives on the Dashboard."
+            actions={
           <div className="flex flex-wrap items-center gap-2">
             {/* Grouping toggle */}
             <div className="flex rounded-xl border bg-background p-1">
@@ -308,18 +306,18 @@ export default function AnalyticsDashboard() {
               Export CSV
             </Button>
           </div>
-        }
-      />
+            }
+          />
 
-      {error && (
-        <div className="flex items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          <AlertTriangle className="h-4 w-4 shrink-0" />
-          {error}
-        </div>
-      )}
+              {error && (
+            <div className="flex items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              {error}
+            </div>
+          )}
 
-      {/* ── KPI Row */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {/* ── KPI Row */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {summaryKpis.map((k) => (
           <MetricCard key={k.label} {...k} loading={loading} />
         ))}
@@ -440,7 +438,10 @@ export default function AnalyticsDashboard() {
                     {overheadData.map((o, i) => (
                       <div key={o.name} className="flex items-center justify-between rounded-lg bg-muted/30 px-3 py-1.5">
                         <div className="flex items-center gap-2">
-                          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }} />
+                          <span
+                            className="h-2 w-2 rounded-full"
+                            style={adminHexBackground(CHART_COLORS[i % CHART_COLORS.length])}
+                          />
                           <span className="text-xs font-medium">{o.name}</span>
                         </div>
                         <span className="text-xs font-semibold">{fmtCurrency(o.value)}</span>
@@ -500,7 +501,10 @@ export default function AnalyticsDashboard() {
                 {sourceData.map((s, i) => (
                   <div key={s.name} className="flex items-center justify-between rounded-lg bg-muted/30 px-3 py-1.5">
                     <div className="flex items-center gap-2">
-                      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }} />
+                      <span
+                            className="h-2 w-2 rounded-full"
+                            style={adminHexBackground(CHART_COLORS[i % CHART_COLORS.length])}
+                          />
                       <span className="text-xs font-medium">{s.name}</span>
                     </div>
                     <span className="text-xs font-bold">{s.value} orders</span>
@@ -666,129 +670,9 @@ export default function AnalyticsDashboard() {
           </div>
         )}
       </DataPanel>
-
-      {/* ── Payment Reconciliation */}
-      <DataPanel>
-        <div className="mb-4 flex items-center gap-2">
-          <Wallet className="h-4 w-4 text-emerald-500" />
-          <h3 className="text-base font-bold">Cash Reconciliation</h3>
-          {reconciliation && (
-            <span className="text-xs text-muted-foreground">{reconciliation.date}</span>
-          )}
-        </div>
-
-        {loading ? (
-          <div className="flex h-24 items-center justify-center">
-            <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
-        ) : !reconciliation ? (
-          <EmptyState title="No reconciliation data" description="Check API connectivity." />
-        ) : (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {[
-              { label: 'Expected Cash', value: fmtCurrency(reconciliation.expected_cash_total), accent: '#3b82f6' },
-              { label: 'Collected Cash', value: fmtCurrency(reconciliation.collected_cash_total), accent: '#22c55e' },
-              { label: 'POS Collected', value: fmtCurrency(reconciliation.cash_collected_by_pos), accent: '#f97316' },
-              { label: 'Rider Collected', value: fmtCurrency(reconciliation.cash_collected_by_rider), accent: '#06b6d4' },
-            ].map((item) => (
-              <div
-                key={item.label}
-                className="rounded-xl border bg-background p-3"
-                style={{ borderLeftColor: item.accent, borderLeftWidth: 3 }}
-              >
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{item.label}</p>
-                <p className="mt-1 text-sm font-black">{item.value}</p>
-              </div>
-            ))}
-
-            {/* Variance banner */}
-            <div
-              className={`col-span-2 sm:col-span-4 flex items-center justify-between rounded-xl border px-4 py-3 ${
-                Math.abs(reconciliation.variance) < 1
-                  ? 'border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-900/20'
-                  : 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                {Math.abs(reconciliation.variance) < 1 ? (
-                  <span className="text-sm font-bold text-emerald-700 dark:text-emerald-400">✓ Balanced</span>
-                ) : (
-                  <>
-                    <AlertTriangle className="h-4 w-4 text-red-600" />
-                    <span className="text-sm font-bold text-red-700 dark:text-red-400">Variance Detected</span>
-                  </>
-                )}
-              </div>
-              <span
-                className={`text-sm font-black ${
-                  Math.abs(reconciliation.variance) < 1
-                    ? 'text-emerald-700 dark:text-emerald-400'
-                    : 'text-red-700 dark:text-red-400'
-                }`}
-              >
-                {reconciliation.variance >= 0 ? '+' : ''}{fmtCurrency(reconciliation.variance)}
-              </span>
-            </div>
-
-            {reconciliation.cash_pending_count > 0 && (
-              <div className="col-span-2 sm:col-span-4 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs dark:border-amber-800 dark:bg-amber-900/20">
-                <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
-                <span className="text-amber-700 dark:text-amber-400">
-                  {reconciliation.cash_pending_count} uncollected cash order(s) totalling {fmtCurrency(reconciliation.cash_pending_amount)}
-                </span>
-              </div>
-            )}
-
-            <div className="col-span-2 sm:col-span-4 mt-4 border-t pt-4">
-              <p className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                POS card collections (standalone terminal)
-              </p>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                <div className="rounded-xl border bg-background p-3" style={{ borderLeftWidth: 3, borderLeftColor: '#6366f1' }}>
-                  <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Recorded events</p>
-                  <p className="mt-1 text-sm font-black">{reconciliation.card_collection?.count ?? 0}</p>
-                </div>
-                <div className="rounded-xl border bg-background p-3" style={{ borderLeftWidth: 3, borderLeftColor: '#8b5cf6' }}>
-                  <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Total (order totals)</p>
-                  <p className="mt-1 text-sm font-black">{fmtCurrency(reconciliation.card_collection?.total_lkr ?? 0)}</p>
-                </div>
-              </div>
-              {(reconciliation.card_collection?.events?.length ?? 0) > 0 ? (
-                <div className="mt-3 max-h-56 overflow-auto rounded-xl border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="text-xs">Time</TableHead>
-                        <TableHead className="text-xs">Order</TableHead>
-                        <TableHead className="text-xs text-right">Amount</TableHead>
-                        <TableHead className="text-xs">Actor</TableHead>
-                        <TableHead className="text-xs">Note</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {(reconciliation.card_collection?.events ?? []).map((ev) => (
-                        <TableRow key={`${ev.order_id}-${ev.recorded_at}`}>
-                          <TableCell className="font-mono text-[11px] text-muted-foreground">
-                            {new Date(ev.recorded_at).toLocaleTimeString()}
-                          </TableCell>
-                          <TableCell className="font-mono text-[11px]">{ev.order_id.slice(0, 8)}…</TableCell>
-                          <TableCell className="text-right font-mono text-xs">{fmtCurrency(ev.amount_lkr)}</TableCell>
-                          <TableCell className="text-[11px]">{ev.actor_role ?? '—'}</TableCell>
-                          <TableCell className="max-w-[180px] truncate text-[11px] text-muted-foreground" title={ev.note ?? ''}>
-                            {ev.note ?? '—'}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              ) : (
-                <p className="mt-2 text-xs text-muted-foreground">No card collection events for this date.</p>
-              )}
-            </div>
-          </div>
-        )}
-      </DataPanel>
-    </PageStack>
+        </PageStack>
+      </div>
+    </div>
   );
 }
+

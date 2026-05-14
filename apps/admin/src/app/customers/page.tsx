@@ -11,18 +11,20 @@ import {
   DataPanel,
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   GridFilterField,
   Input,
   Label,
   MetricCard,
-  PageHeader,
   PageStack,
   SharedDataGrid,
   SharedDataGridColumn,
   useClientDirectoryCatalog,
 } from '@wrap-roll/shared-ui';
+import { AdminPageHeader } from '../../components/AdminPageHeader';
+import { adminPageContainerClass, adminPageRootClass } from '../../lib/admin-ui-contract';
 
 type CustomerRow = {
   id: string;
@@ -268,16 +270,18 @@ export default function CustomersPage() {
   ];
 
   return (
-    <PageStack>
-      <PageHeader
-        title="Customers"
-        description="Manage non-staff users (guests + client accounts)."
-        actions={
-          <Button variant="outline" onClick={() => void fetchCustomers()} disabled={loading}>
-            {loading ? 'Refreshing...' : 'Refresh'}
-          </Button>
-        }
-      />
+    <div className={adminPageRootClass}>
+      <div className={adminPageContainerClass}>
+        <PageStack>
+          <AdminPageHeader
+            title="Customers"
+            description="Manage non-staff users (guests + client accounts)."
+            actions={
+              <Button variant="outline" onClick={() => void fetchCustomers()} disabled={loading}>
+                {loading ? 'Refreshing...' : 'Refresh'}
+              </Button>
+            }
+          />
 
       {error ? (
         <p className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
@@ -364,13 +368,22 @@ export default function CustomersPage() {
       </DataPanel>
 
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent showCloseButton className="sm:max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>
-              Customer profile {selectedDetail ? `• ${selectedDetail.name || 'Guest'}` : ''}
-            </DialogTitle>
-          </DialogHeader>
+        <DialogContent
+          showCloseButton
+          className="gap-0 overflow-hidden rounded-2xl border-border/80 p-0 shadow-2xl sm:max-w-3xl"
+        >
+          <div className="border-b border-border/60 bg-gradient-to-br from-primary/[0.06] via-background to-muted/25 px-6 pb-4 pt-6 pr-14">
+            <DialogHeader className="space-y-1 text-left">
+              <DialogTitle className="font-display text-xl font-black tracking-tight">
+                Customer profile {selectedDetail ? `• ${selectedDetail.name || 'Guest'}` : ''}
+              </DialogTitle>
+              <DialogDescription>
+                View orders, saved addresses, and cards. Edit core contact fields below.
+              </DialogDescription>
+            </DialogHeader>
+          </div>
 
+          <div className="max-h-[min(85vh,720px)] overflow-y-auto px-6 py-6">
           {detailLoading || !selectedDetail ? (
             <p className="text-sm text-muted-foreground">Loading customer detail…</p>
           ) : (
@@ -475,9 +488,12 @@ export default function CustomersPage() {
               </DataPanel>
             </div>
           )}
+          </div>
         </DialogContent>
       </Dialog>
-    </PageStack>
+        </PageStack>
+      </div>
+    </div>
   );
 }
 

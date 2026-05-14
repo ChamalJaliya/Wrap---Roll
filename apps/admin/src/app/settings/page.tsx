@@ -19,14 +19,15 @@ import {
   FormToggleRow,
   Input,
   Label,
+  NativeSelect,
   OpsCalendar,
   toast,
 } from '@wrap-roll/shared-ui';
+import { AdminPageHeader } from '../../components/AdminPageHeader';
 import {
+  adminInlineAlertErrorClass,
   adminPageContainerClass,
-  adminPageShellClass,
-  adminPageTitleClass,
-  adminPageTitleSpacingClass,
+  adminPageRootClass,
 } from '../../lib/admin-ui-contract';
 
 type AdminSettings = {
@@ -196,9 +197,9 @@ export default function AdminSettingsPage() {
         }
         setEmergencyMessage(oc.emergencyClosureMessage ?? '');
       } catch (e: any) {
-      const message = e?.response?.data?.error || e?.message || 'Failed to load settings';
-      setError(message);
-      toast.error(String(message));
+        const message = e?.response?.data?.error || e?.message || 'Failed to load settings';
+        setError(message);
+        toast.error(String(message));
       } finally {
         setLoading(false);
       }
@@ -379,54 +380,51 @@ export default function AdminSettingsPage() {
   };
 
   return (
-    <div className={adminPageShellClass}>
+    <div className={adminPageRootClass}>
       <div className={adminPageContainerClass}>
-        <h1 className={`${adminPageTitleSpacingClass} ${adminPageTitleClass}`}>
-          Business Settings
-        </h1>
+        <AdminPageHeader
+          title="Business Settings"
+          description="Timezone, hours, calendar overrides, contact details, payments JSON, and supervisor PIN."
+        />
 
-        {error ? (
-          <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
-          </div>
-        ) : null}
+        {error ? <div className={adminInlineAlertErrorClass}>{error}</div> : null}
 
-        <Card className="mb-8 border-primary/25 bg-gradient-to-br from-primary/5 to-transparent lg:col-span-2">
-          <CardContent className="flex flex-col gap-4 py-6 sm:flex-row sm:items-center sm:justify-between">
-            <div>
+        <Card className="mb-6 border border-primary/20 bg-gradient-to-br from-primary/5 to-transparent shadow-sm">
+          <CardContent className="flex flex-col gap-5 py-6 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+            <div className="min-w-0">
               <p className="font-display text-lg font-bold text-neutral-900">Tax & local delivery</p>
-              <p className="mt-1 text-sm text-neutral-600">
-                Configure VAT for web checkout and delivery fees (flat fee and advanced JSON).
+              <p className="mt-1.5 text-sm leading-relaxed text-neutral-600">
+                Configure VAT for web checkout and delivery fees (flat fee, distance bands, and JSON).
               </p>
             </div>
-            <Button variant="default" asChild>
+            <Button className="h-10 shrink-0" variant="default" asChild>
               <Link href="/pricing">Open tax & delivery</Link>
             </Button>
           </CardContent>
         </Card>
 
-        <Card className="mb-8 border-slate-200">
-          <CardHeader>
+        <Card className="mb-6 border-border/80 shadow-sm">
+          <CardHeader className="pb-3">
             <CardTitle>Supervisor PIN (register)</CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="mb-4 text-sm text-neutral-600">
+          <CardContent className="space-y-4 pt-0">
+            <p className="text-sm leading-relaxed text-neutral-600">
               Set the PIN cashiers enter with a supervisor&apos;s email when the POS asks for approval
               (discounts, voids, and similar). Only admin accounts can have a supervisor PIN.
             </p>
             {supervisorPinLoading ? (
               <p className="text-sm text-neutral-500">Loading admin accounts…</p>
             ) : adminStaff.length === 0 ? (
-              <p className="text-sm text-amber-800">
+              <p className="rounded-lg border border-amber-500/40 bg-amber-50 px-3 py-2 text-sm text-amber-900">
                 No admin users found. Add an admin under Staff first.
               </p>
             ) : (
-              <form className="grid max-w-xl gap-4" onSubmit={saveSupervisorPin}>
-                <div className="grid gap-2">
+              <form className="flex max-w-2xl flex-col gap-5" onSubmit={saveSupervisorPin}>
+                <div className="flex flex-col gap-1.5">
                   <Label htmlFor="supervisor-pin-admin">Admin account</Label>
-                  <select
+                  <NativeSelect
                     id="supervisor-pin-admin"
-                    className="h-10 w-full rounded-xl border border-neutral-200 bg-white px-3 text-sm text-neutral-900 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                    className="h-10 min-h-10 py-2"
                     value={supervisorStaffId}
                     onChange={(e) => setSupervisorStaffId(e.target.value)}
                   >
@@ -435,13 +433,14 @@ export default function AdminSettingsPage() {
                         {a.fullName} ({a.email})
                       </option>
                     ))}
-                  </select>
+                  </NativeSelect>
                 </div>
-                <div className="grid gap-2 sm:grid-cols-2 sm:gap-4">
-                  <div className="grid gap-2">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="flex flex-col gap-1.5">
                     <Label htmlFor="supervisor-pin-new">New PIN</Label>
                     <Input
                       id="supervisor-pin-new"
+                      className="h-10"
                       type="password"
                       autoComplete="new-password"
                       value={supervisorPin}
@@ -449,10 +448,11 @@ export default function AdminSettingsPage() {
                       placeholder="At least 6 characters"
                     />
                   </div>
-                  <div className="grid gap-2">
+                  <div className="flex flex-col gap-1.5">
                     <Label htmlFor="supervisor-pin-confirm">Confirm PIN</Label>
                     <Input
                       id="supervisor-pin-confirm"
+                      className="h-10"
                       type="password"
                       autoComplete="new-password"
                       value={supervisorPinConfirm}
@@ -461,8 +461,8 @@ export default function AdminSettingsPage() {
                     />
                   </div>
                 </div>
-                <div>
-                  <Button type="submit" disabled={supervisorPinSaving}>
+                <div className="flex justify-end border-t border-border/70 pt-5">
+                  <Button className="h-10 min-w-[12rem]" type="submit" disabled={supervisorPinSaving}>
                     {supervisorPinSaving ? 'Saving…' : 'Save supervisor PIN'}
                   </Button>
                 </div>
@@ -471,33 +471,37 @@ export default function AdminSettingsPage() {
           </CardContent>
         </Card>
 
-        <div className="grid gap-8 lg:grid-cols-2">
-          <Card className="lg:col-span-2">
-            <CardHeader>
+        <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+          <Card className="border-border/80 shadow-sm lg:col-span-2">
+            <CardHeader className="pb-3">
               <CardTitle>Operations calendar</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-5">
-              <p className="text-xs text-neutral-500">
-                Dates use the business <strong>timezone</strong> above. Customer orders (web checkout)
-                are blocked on closed days, during emergency closure, or outside special hours when
-                configured.
+            <CardContent className="space-y-6 pt-0">
+              <p className="text-xs leading-relaxed text-neutral-500">
+                Dates use the business <strong className="font-medium text-neutral-700">timezone</strong> from
+                Operating hours below. Web checkout is blocked on closed days, during emergency closure, or
+                outside special hours when configured.
               </p>
-              <div className="grid gap-4 rounded-xl border bg-white p-4 sm:grid-cols-2">
-                <div className="grid gap-2">
-                  <Label>Emergency closure until (local)</Label>
+              <div className="grid gap-4 rounded-xl border border-border/70 bg-muted/10 p-4 sm:grid-cols-2 sm:gap-5">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="emergency-until">Emergency closure until (local)</Label>
                   <Input
+                    id="emergency-until"
+                    className="h-10"
                     type="datetime-local"
                     value={emergencyUntilLocal}
                     onChange={(e) => setEmergencyUntilLocal(e.target.value)}
                   />
-                  <p className="text-xs text-neutral-500">
+                  <p className="text-xs leading-relaxed text-neutral-500">
                     While now is before this time, new online orders are rejected. Clear the field to
                     disable.
                   </p>
                 </div>
-                <div className="grid gap-2">
-                  <Label>Emergency message (shown to customers)</Label>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="emergency-msg">Emergency message (shown to customers)</Label>
                   <Input
+                    id="emergency-msg"
+                    className="h-10"
                     value={emergencyMessage}
                     onChange={(e) => setEmergencyMessage(e.target.value)}
                     placeholder="e.g. Closed for staff training — back at 3pm"
@@ -516,56 +520,83 @@ export default function AdminSettingsPage() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
+          <Card className="border-border/80 shadow-sm">
+            <CardHeader className="pb-3">
               <CardTitle>Operating hours</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-5">
-              <div className="grid gap-2">
-                <Label>Timezone</Label>
-                <Input value={timezone} onChange={(e) => setTimezone(e.target.value)} />
+            <CardContent className="space-y-6 pt-0">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="biz-timezone">Timezone</Label>
+                <Input
+                  id="biz-timezone"
+                  className="h-10 max-w-md font-mono text-sm"
+                  value={timezone}
+                  onChange={(e) => setTimezone(e.target.value)}
+                />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label>Open</Label>
-                  <Input type="time" value={openTime} onChange={(e) => setOpenTime(e.target.value)} />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Close</Label>
-                  <Input type="time" value={closeTime} onChange={(e) => setCloseTime(e.target.value)} />
-                </div>
-              </div>
-              <p className="text-xs text-neutral-500">
-                The time picker uses 24-hour values internally (e.g. 23:00 for 11:00 PM). If close is set
-                to noon (12:00 PM), online ordering ends after the morning window — last ASAP orders are{' '}
-                <strong>close time minus</strong> &quot;Order cutoff before close&quot; below.
-              </p>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label>Min lead time (minutes)</Label>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="biz-open">Open</Label>
                   <Input
+                    id="biz-open"
+                    className="h-10"
+                    type="time"
+                    value={openTime}
+                    onChange={(e) => setOpenTime(e.target.value)}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="biz-close">Close</Label>
+                  <Input
+                    id="biz-close"
+                    className="h-10"
+                    type="time"
+                    value={closeTime}
+                    onChange={(e) => setCloseTime(e.target.value)}
+                  />
+                </div>
+              </div>
+              <p className="text-xs leading-relaxed text-neutral-500">
+                The time picker uses 24-hour values internally (e.g. 23:00 for 11:00 PM). If close is set to
+                noon (12:00 PM), online ordering ends after the morning window — last ASAP orders follow{' '}
+                <strong className="font-medium text-neutral-700">close time minus</strong> “Order cutoff before
+                close” below.
+              </p>
+              <div className="grid gap-4 border-t border-border/70 pt-6 sm:grid-cols-2">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="min-lead">Min lead time (minutes)</Label>
+                  <Input
+                    id="min-lead"
+                    className="h-10 max-w-[12rem]"
                     type="number"
                     min={0}
                     value={String(minLead)}
                     onChange={(e) => setMinLead(Number(e.target.value))}
                   />
                 </div>
-                <div className="grid gap-2">
-                  <Label>Same-day scheduling only</Label>
-                  <FormToggleRow
-                    className="text-sm text-neutral-700"
-                    label="Enabled"
-                    inputProps={{
-                      type: 'checkbox',
-                      checked: sameDayOnly,
-                      onChange: (e) => setSameDayOnly((e.target as HTMLInputElement).checked),
-                    }}
-                  />
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Scheduling
+                  </span>
+                  <div className="rounded-lg border border-border/70 bg-muted/15 px-3 py-3">
+                    <FormToggleRow
+                      className="text-sm text-neutral-800"
+                      label="Same-day scheduling only"
+                      inputProps={{
+                        type: 'checkbox',
+                        className: 'size-4 accent-primary',
+                        checked: sameDayOnly,
+                        onChange: (e) => setSameDayOnly((e.target as HTMLInputElement).checked),
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
-              <div className="grid gap-2">
-                <Label>Order cutoff before close (minutes)</Label>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="order-cutoff">Order cutoff before close (minutes)</Label>
                 <Input
+                  id="order-cutoff"
+                  className="h-10 max-w-[12rem]"
                   type="number"
                   min={0}
                   value={String(orderCutoffBeforeCloseMinutes)}
@@ -574,60 +605,99 @@ export default function AdminSettingsPage() {
                     setOrderCutoffBeforeCloseMinutes(v);
                   }}
                 />
-                <p className="text-xs text-neutral-500">
+                <p className="text-xs leading-relaxed text-neutral-500">
                   New ASAP orders are blocked this many minutes before closing time.
                 </p>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
+          <Card className="border-border/80 shadow-sm">
+            <CardHeader className="pb-3">
               <CardTitle>Business profile</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-5">
-              <div className="grid gap-2">
-                <Label>Business name</Label>
-                <Input value={businessName} onChange={(e) => setBusinessName(e.target.value)} />
+            <CardContent className="space-y-4 pt-0">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="biz-name">Business name</Label>
+                <Input
+                  id="biz-name"
+                  className="h-10"
+                  value={businessName}
+                  onChange={(e) => setBusinessName(e.target.value)}
+                />
               </div>
-              <div className="grid gap-2">
-                <Label>Contact email</Label>
-                <Input value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} />
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="biz-contact-email">Contact email</Label>
+                <Input
+                  id="biz-contact-email"
+                  className="h-10"
+                  type="email"
+                  autoComplete="email"
+                  value={contactEmail}
+                  onChange={(e) => setContactEmail(e.target.value)}
+                />
               </div>
-              <div className="grid gap-2">
-                <Label>Reply-to email</Label>
-                <Input value={replyToEmail} onChange={(e) => setReplyToEmail(e.target.value)} />
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="biz-reply-email">Reply-to email</Label>
+                <Input
+                  id="biz-reply-email"
+                  className="h-10"
+                  type="email"
+                  autoComplete="email"
+                  value={replyToEmail}
+                  onChange={(e) => setReplyToEmail(e.target.value)}
+                />
               </div>
-              <div className="grid gap-2">
-                <Label>Contact phone</Label>
-                <Input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} />
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="biz-phone">Contact phone</Label>
+                <Input
+                  id="biz-phone"
+                  className="h-10"
+                  type="tel"
+                  autoComplete="tel"
+                  value={contactPhone}
+                  onChange={(e) => setContactPhone(e.target.value)}
+                />
               </div>
-              <div className="grid gap-2">
-                <Label>Address line 1</Label>
-                <Input value={addressLine1} onChange={(e) => setAddressLine1(e.target.value)} />
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="biz-addr-1">Address line 1</Label>
+                <Input
+                  id="biz-addr-1"
+                  className="h-10"
+                  value={addressLine1}
+                  onChange={(e) => setAddressLine1(e.target.value)}
+                />
               </div>
-              <div className="grid gap-2">
-                <Label>Address line 2</Label>
-                <Input value={addressLine2} onChange={(e) => setAddressLine2(e.target.value)} />
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="biz-addr-2">Address line 2</Label>
+                <Input
+                  id="biz-addr-2"
+                  className="h-10"
+                  value={addressLine2}
+                  onChange={(e) => setAddressLine2(e.target.value)}
+                />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle>Advanced (JSON)</CardTitle>
+          <Card className="border-border/80 shadow-sm lg:col-span-2">
+            <CardHeader className="pb-3">
+              <CardTitle>Advanced — payment JSON</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid gap-2">
-                <Label>Payment config (paymentJson)</Label>
-                <p className="text-xs text-neutral-500">
-                  Toggle common methods here; use JSON for anything extra.
-                </p>
-                <div className="mb-2 grid grid-cols-2 gap-2 rounded-xl border p-3 text-sm sm:grid-cols-4">
+            <CardContent className="space-y-6 pt-0">
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-base font-semibold">Payment methods</Label>
+                  <p className="mt-1 text-xs leading-relaxed text-neutral-500">
+                    Toggle common methods here; use JSON for anything extra.
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 gap-3 rounded-xl border border-border/70 bg-muted/10 p-4 sm:grid-cols-2 lg:grid-cols-3">
                   <FormToggleRow
                     label="Cash"
                     inputProps={{
                       type: 'checkbox',
+                      className: 'size-4 accent-primary',
                       checked: paymentMethods.cash,
                       onChange: (e) => {
                         const v = (e.target as HTMLInputElement).checked;
@@ -640,6 +710,7 @@ export default function AdminSettingsPage() {
                     label="PayHere"
                     inputProps={{
                       type: 'checkbox',
+                      className: 'size-4 accent-primary',
                       checked: paymentMethods.payhere,
                       onChange: (e) => {
                         const v = (e.target as HTMLInputElement).checked;
@@ -652,6 +723,7 @@ export default function AdminSettingsPage() {
                     label="Card (POS)"
                     inputProps={{
                       type: 'checkbox',
+                      className: 'size-4 accent-primary',
                       checked: paymentMethods.card,
                       onChange: (e) => {
                         const v = (e.target as HTMLInputElement).checked;
@@ -664,6 +736,7 @@ export default function AdminSettingsPage() {
                     label="Online"
                     inputProps={{
                       type: 'checkbox',
+                      className: 'size-4 accent-primary',
                       checked: paymentMethods.online,
                       onChange: (e) => {
                         const v = (e.target as HTMLInputElement).checked;
@@ -672,42 +745,53 @@ export default function AdminSettingsPage() {
                       },
                     }}
                   />
-                  <FormToggleRow
-                    label="Supervisor PIN to record card (POS)"
-                    inputProps={{
-                      type: 'checkbox',
-                      checked: requireSupervisorForCardCollection,
-                      onChange: (e) => {
-                        const v = (e.target as HTMLInputElement).checked;
-                        setRequireSupervisorForCardCollection(v);
-                        setPaymentJsonText((t) =>
-                          patchPaymentJsonPos(t, { requireSupervisorForCardCollection: v }),
-                        );
-                      },
-                    }}
-                  />
+                  <div className="sm:col-span-2 lg:col-span-3">
+                    <div className="rounded-lg border border-border/60 bg-background px-3 py-3">
+                      <FormToggleRow
+                        className="text-sm text-neutral-800"
+                        label="Supervisor PIN to record card (POS)"
+                        inputProps={{
+                          type: 'checkbox',
+                          className: 'size-4 accent-primary',
+                          checked: requireSupervisorForCardCollection,
+                          onChange: (e) => {
+                            const v = (e.target as HTMLInputElement).checked;
+                            setRequireSupervisorForCardCollection(v);
+                            setPaymentJsonText((t) =>
+                              patchPaymentJsonPos(t, { requireSupervisorForCardCollection: v }),
+                            );
+                          },
+                        }}
+                      />
+                    </div>
+                  </div>
                 </div>
-                <p className="mb-1 text-xs text-neutral-500">
-                  Editing <code className="rounded bg-neutral-100 px-1">methods</code> in the JSON updates these
-                  toggles. A toggle updates the JSON too, so Save never drops{' '}
-                  <code className="rounded bg-neutral-100 px-1">card</code> because of stale state.
+                <p className="text-xs leading-relaxed text-neutral-500">
+                  Editing <code className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[11px]">methods</code>{' '}
+                  in the JSON updates these toggles. A toggle updates the JSON too, so Save never drops{' '}
+                  <code className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[11px]">card</code> because of
+                  stale state.
                 </p>
                 <textarea
-                  className="min-h-[140px] w-full rounded-xl border bg-white p-3 font-mono text-sm"
+                  className="min-h-[160px] w-full rounded-xl border border-border/70 bg-background p-4 font-mono text-sm shadow-inner"
+                  spellCheck={false}
                   value={paymentJsonText}
                   onChange={(e) => setPaymentJsonText(e.target.value)}
                 />
                 {parsedPaymentJson.error ? (
-                  <p className="text-sm text-red-600">Invalid JSON: {parsedPaymentJson.error}</p>
+                  <p className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                    Invalid JSON: {parsedPaymentJson.error}
+                  </p>
                 ) : null}
               </div>
 
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-4 border-t border-border/70 pt-6 sm:flex-row sm:items-center sm:justify-between">
                 <div className="text-xs text-neutral-500">
-                  {loading ? 'Loading…' : raw ? `Loaded: ${raw.id}` : 'Not loaded'}
+                  {loading ? 'Loading…' : raw ? `Loaded record: ${raw.id}` : 'Not loaded'}
                 </div>
                 <Button
-                  onClick={onSave}
+                  className="h-10 min-w-[11rem]"
+                  onClick={() => void onSave()}
                   disabled={saving || loading || !!parsedPaymentJson.error}
                 >
                   {saving ? 'Saving…' : 'Save settings'}

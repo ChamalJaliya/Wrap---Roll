@@ -5,10 +5,11 @@ import Link from 'next/link';
 import api from '../../services/api';
 import { Button, Card, CardContent, CardHeader, CardTitle, FormToggleRow, Input, Label, toast } from '@wrap-roll/shared-ui';
 import type { DeliveryFeeMode, DistanceBand } from '@wrap-roll/contracts';
+import { AdminPageHeader } from '../../components/AdminPageHeader';
 import {
+  adminInlineAlertErrorClass,
   adminPageContainerClass,
-  adminPageShellClass,
-  adminPageTitleClass,
+  adminPageRootClass,
 } from '../../lib/admin-ui-contract';
 
 type AdminSettingsRow = {
@@ -248,48 +249,46 @@ export default function AdminPricingPage() {
 
   if (loading) {
     return (
-      <div className={adminPageShellClass}>
+      <div className={adminPageRootClass}>
         <p className="text-sm text-neutral-500">Loading…</p>
       </div>
     );
   }
 
   return (
-    <div className={adminPageShellClass}>
+    <div className={adminPageRootClass}>
       <div className={adminPageContainerClass}>
-        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h1 className={adminPageTitleClass}>
-              Tax & delivery
-            </h1>
-            <p className="mt-2 max-w-2xl text-sm text-neutral-600">
+        <AdminPageHeader
+          title="Tax & delivery"
+          description={
+            <>
               Web checkout VAT on subtotal and local delivery fees. Order cutoff before closing stays under{' '}
               <Link href="/settings" className="font-medium text-primary underline">
                 Settings → Operating hours
               </Link>
               .
-            </p>
-          </div>
-          <Button variant="outline" asChild>
-            <Link href="/settings">Back to settings</Link>
-          </Button>
-        </div>
+            </>
+          }
+          actions={
+            <Button variant="outline" asChild>
+              <Link href="/settings">Back to settings</Link>
+            </Button>
+          }
+        />
 
-        {error ? (
-          <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
-          </div>
-        ) : null}
+        {error ? <div className={adminInlineAlertErrorClass}>{error}</div> : null}
 
-        <div className="grid gap-8 lg:grid-cols-2">
-          <Card>
-            <CardHeader>
+        <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+          <Card className="border-border/80 shadow-sm">
+            <CardHeader className="pb-3">
               <CardTitle>Storefront VAT</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="grid gap-2">
-                <Label>Checkout VAT rate (decimal)</Label>
+            <CardContent className="space-y-4 pt-0">
+              <div className="flex max-w-md flex-col gap-1.5">
+                <Label htmlFor="checkout-vat-rate">Checkout VAT rate (decimal)</Label>
                 <Input
+                  id="checkout-vat-rate"
+                  className="h-10 max-w-[11rem]"
                   type="number"
                   min={0}
                   max={1}
@@ -297,49 +296,56 @@ export default function AdminPricingPage() {
                   value={String(checkoutVatRate)}
                   onChange={(e) => setCheckoutVatRate(Number(e.target.value))}
                 />
-                <p className="text-xs text-neutral-500">
-                  Example: <code className="rounded bg-neutral-100 px-1">0.15</code> for 15% on subtotal. Used
-                  for online totals and PayHere.
+                <p className="text-xs leading-relaxed text-neutral-500">
+                  Example: <code className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[11px]">0.15</code>{' '}
+                  for 15% on subtotal. Used for online totals and PayHere.
                 </p>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
+          <Card className="border-border/80 shadow-sm">
+            <CardHeader className="pb-3">
               <CardTitle>Local delivery</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <FormToggleRow
-                className="gap-3 text-sm font-medium text-neutral-800"
-                label="Offer delivery on web checkout"
-                inputProps={{
-                  type: 'checkbox',
-                  checked: deliveryEnabled,
-                  onChange: (e) => {
-                    const v = (e.target as HTMLInputElement).checked;
-                    setDeliveryEnabled(v);
-                    setDeliveryJsonText((t) => patchDeliveryJsonText(t, { enabled: v }));
-                  },
-                }}
-              />
+            <CardContent className="space-y-5 pt-0">
+              <div className="rounded-lg border border-border/70 bg-muted/15 px-4 py-3">
+                <FormToggleRow
+                  className="gap-3 text-sm font-medium text-neutral-800"
+                  label="Offer delivery on web checkout"
+                  inputProps={{
+                    type: 'checkbox',
+                    className: 'size-4 accent-primary',
+                    checked: deliveryEnabled,
+                    onChange: (e) => {
+                      const v = (e.target as HTMLInputElement).checked;
+                      setDeliveryEnabled(v);
+                      setDeliveryJsonText((t) => patchDeliveryJsonText(t, { enabled: v }));
+                    },
+                  }}
+                />
+              </div>
 
-              <div className="grid gap-2">
-                <Label>Delivery fee mode</Label>
-                <div className="flex flex-wrap gap-4 text-sm">
-                  <label className="flex cursor-pointer items-center gap-2">
+              <div className="space-y-2">
+                <Label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Delivery fee mode
+                </Label>
+                <div className="flex flex-col gap-2 rounded-lg border border-border/70 bg-background p-3 sm:flex-row sm:flex-wrap sm:gap-6">
+                  <label className="flex cursor-pointer items-center gap-2.5 text-sm">
                     <input
                       type="radio"
                       name="feeMode"
+                      className="size-4 accent-primary"
                       checked={feeMode === 'flat'}
                       onChange={() => setFeeMode('flat')}
                     />
                     Flat fee
                   </label>
-                  <label className="flex cursor-pointer items-center gap-2">
+                  <label className="flex cursor-pointer items-center gap-2.5 text-sm">
                     <input
                       type="radio"
                       name="feeMode"
+                      className="size-4 accent-primary"
                       checked={feeMode === 'distance'}
                       onChange={() => setFeeMode('distance')}
                     />
@@ -349,9 +355,11 @@ export default function AdminPricingPage() {
               </div>
 
               {feeMode === 'flat' ? (
-                <div className="grid gap-2">
-                  <Label>Flat delivery fee (LKR)</Label>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="delivery-flat-fee">Flat delivery fee (LKR)</Label>
                   <Input
+                    id="delivery-flat-fee"
+                    className="h-10 max-w-[14rem]"
                     type="number"
                     min={0}
                     step="1"
@@ -364,15 +372,18 @@ export default function AdminPricingPage() {
                   />
                 </div>
               ) : (
-                <div className="space-y-4">
-                  <p className="text-xs text-neutral-500">
-                    Set your kitchen or dispatch point, then tiers by road distance (approximated as
-                    straight-line / haversine). Customers share their browser location at checkout.
+                <div className="space-y-6">
+                  <p className="text-xs leading-relaxed text-neutral-500">
+                    Set your kitchen or dispatch point, then tiers by distance (straight-line / haversine).
+                    Customers share their browser location at checkout.
                   </p>
+
                   <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="grid gap-2">
-                      <Label>Origin latitude</Label>
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="origin-lat">Origin latitude</Label>
                       <Input
+                        id="origin-lat"
+                        className="h-10 font-mono text-sm"
                         type="text"
                         inputMode="decimal"
                         placeholder="e.g. 6.9271"
@@ -380,9 +391,11 @@ export default function AdminPricingPage() {
                         onChange={(e) => setOriginLatStr(e.target.value)}
                       />
                     </div>
-                    <div className="grid gap-2">
-                      <Label>Origin longitude</Label>
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="origin-lng">Origin longitude</Label>
                       <Input
+                        id="origin-lng"
+                        className="h-10 font-mono text-sm"
                         type="text"
                         inputMode="decimal"
                         placeholder="e.g. 79.8612"
@@ -391,36 +404,47 @@ export default function AdminPricingPage() {
                       />
                     </div>
                   </div>
-                  <div className="grid gap-2">
-                    <Label>Max delivery radius (km, optional)</Label>
+
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="max-delivery-km">Max delivery radius (km, optional)</Label>
                     <Input
+                      id="max-delivery-km"
+                      className="h-10 max-w-md"
                       type="text"
                       inputMode="decimal"
                       placeholder="Leave empty for no hard limit"
                       value={maxDeliveryKmStr}
                       onChange={(e) => setMaxDeliveryKmStr(e.target.value)}
                     />
-                    <p className="text-xs text-neutral-500">
-                      Orders farther than this are rejected at checkout (still use bands for pricing below
-                      the cap).
+                    <p className="text-xs leading-relaxed text-neutral-500">
+                      Orders beyond this distance are rejected at checkout (bands still apply below the cap).
                     </p>
                   </div>
-                  <div className="grid gap-2">
-                    <Label>Distance bands</Label>
-                    <p className="text-xs text-neutral-500">
-                      First matching tier wins (by max km). Leave max km empty on the last row for
-                      &quot;everything farther&quot;.
-                    </p>
-                    <div className="space-y-2">
+
+                  <div className="space-y-4 border-t border-border/70 pt-6">
+                    <div className="space-y-1">
+                      <Label>Distance bands</Label>
+                      <p className="text-xs leading-relaxed text-neutral-500">
+                        First matching tier wins. Leave <strong className="font-medium">Max km</strong> empty on the
+                        last row for all farther distances (∞).
+                      </p>
+                    </div>
+                    <div className="space-y-3">
                       {bandRows.map((row) => (
-                        <div key={row.id} className="flex flex-wrap items-end gap-2">
-                          <div className="grid flex-1 gap-1 min-w-[120px]">
-                            <span className="text-[10px] font-medium uppercase text-neutral-500">
-                              Up to km (blank = ∞)
-                            </span>
+                        <div
+                          key={row.id}
+                          className="grid grid-cols-1 gap-3 rounded-lg border border-border/70 bg-muted/10 p-3 sm:grid-cols-12 sm:items-end"
+                        >
+                          <div className="flex flex-col gap-1.5 sm:col-span-5">
+                            <Label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                              Max km
+                            </Label>
                             <Input
+                              className="h-10 font-mono text-sm"
                               type="text"
                               inputMode="decimal"
+                              placeholder="∞ blank"
+                              title="Blank means unlimited upper tier"
                               value={row.maxKmStr}
                               onChange={(e) => {
                                 const v = e.target.value;
@@ -430,11 +454,12 @@ export default function AdminPricingPage() {
                               }}
                             />
                           </div>
-                          <div className="grid flex-1 gap-1 min-w-[120px]">
-                            <span className="text-[10px] font-medium uppercase text-neutral-500">
+                          <div className="flex flex-col gap-1.5 sm:col-span-5">
+                            <Label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                               Fee (LKR)
-                            </span>
+                            </Label>
                             <Input
+                              className="h-10"
                               type="number"
                               min={0}
                               step={1}
@@ -447,53 +472,60 @@ export default function AdminPricingPage() {
                               }}
                             />
                           </div>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="shrink-0"
-                            disabled={bandRows.length <= 1}
-                            onClick={() =>
-                              setBandRows((rows) => rows.filter((r) => r.id !== row.id))
-                            }
-                          >
-                            Remove
-                          </Button>
+                          <div className="flex sm:col-span-2 sm:justify-end">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="h-10 w-full shrink-0 sm:w-auto"
+                              disabled={bandRows.length <= 1}
+                              onClick={() =>
+                                setBandRows((rows) => rows.filter((r) => r.id !== row.id))
+                              }
+                            >
+                              Remove
+                            </Button>
+                          </div>
                         </div>
                       ))}
                     </div>
                     <Button
                       type="button"
                       variant="outline"
-                      size="sm"
-                      className="mt-1 w-fit"
+                      className="h-10 w-full sm:w-fit"
                       onClick={() =>
                         setBandRows((rows) => [...rows, { id: uid(), maxKmStr: '', feeStr: '0' }])
                       }
                     >
                       Add band
                     </Button>
-                    <div className="mt-3 rounded-xl border bg-white p-3">
-                      <p className="mb-2 text-xs font-medium text-neutral-600">Validation preview</p>
-                      <div className="flex flex-wrap items-end gap-2">
-                        <div className="grid gap-1">
-                          <span className="text-[10px] uppercase text-neutral-500">Distance (km)</span>
+
+                    <div className="space-y-3 border-t border-border/70 pt-6">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Validation preview
+                      </p>
+                      <div className="flex flex-col gap-4 rounded-xl border border-border/70 bg-muted/20 p-4 sm:flex-row sm:items-end">
+                        <div className="flex flex-col gap-1.5">
+                          <Label htmlFor="preview-km" className="text-[11px] uppercase text-muted-foreground">
+                            Test distance (km)
+                          </Label>
                           <Input
+                            id="preview-km"
+                            className="h-10 max-w-[10rem] font-mono text-sm"
                             type="text"
                             inputMode="decimal"
                             value={previewKmStr}
                             onChange={(e) => setPreviewKmStr(e.target.value)}
                           />
                         </div>
-                        <div className="text-sm text-neutral-700">
-                          Fee:{' '}
-                          <strong>
+                        <div className="rounded-lg border border-border/60 bg-background px-4 py-3 text-sm text-neutral-800 sm:min-w-[12rem]">
+                          <span className="text-muted-foreground">Quoted fee</span>
+                          <p className="mt-1 font-display text-lg font-bold tabular-nums">
                             {(() => {
                               const km = Number(previewKmStr);
                               const fee = previewFeeForKm(km);
-                              return fee == null ? 'invalid' : `LKR ${fee.toLocaleString()}`;
+                              return fee == null ? '—' : `LKR ${fee.toLocaleString()}`;
                             })()}
-                          </strong>
+                          </p>
                         </div>
                       </div>
                     </div>
